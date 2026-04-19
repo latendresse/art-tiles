@@ -5898,105 +5898,98 @@ var $author$project$Main$TileMouseDown = F5(
 	function (a, b, c, d, e) {
 		return {$: 'TileMouseDown', a: a, b: b, c: c, d: d, e: e};
 	});
-var $elm$core$Basics$composeR = F3(
-	function (f, g, x) {
-		return g(
-			f(x));
-	});
+var $elm$svg$Svg$clipPath = $elm$svg$Svg$trustedNode('clipPath');
+var $elm$svg$Svg$Attributes$clipPath = _VirtualDom_attribute('clip-path');
+var $elm$svg$Svg$defs = $elm$svg$Svg$trustedNode('defs');
 var $elm$svg$Svg$Attributes$dominantBaseline = _VirtualDom_attribute('dominant-baseline');
 var $elm$svg$Svg$Attributes$fontFamily = _VirtualDom_attribute('font-family');
 var $elm$svg$Svg$Attributes$fontSize = _VirtualDom_attribute('font-size');
 var $elm$svg$Svg$Attributes$fontStyle = _VirtualDom_attribute('font-style');
 var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
 var $elm$core$String$fromFloat = _String_fromNumber;
-var $elm$core$Set$Set_elm_builtin = function (a) {
-	return {$: 'Set_elm_builtin', a: a};
-};
-var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
-var $elm$core$Set$insert = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return $elm$core$Set$Set_elm_builtin(
-			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
-	});
-var $elm$core$Set$fromList = function (list) {
-	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
-};
-var $elm$core$List$maximum = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(
-			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $elm$core$Dict$get = F2(
-	function (targetKey, dict) {
-		get:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return $elm$core$Maybe$Nothing;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var _v1 = A2($elm$core$Basics$compare, targetKey, key);
-				switch (_v1.$) {
-					case 'LT':
-						var $temp$targetKey = targetKey,
-							$temp$dict = left;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-					case 'EQ':
-						return $elm$core$Maybe$Just(value);
-					default:
-						var $temp$targetKey = targetKey,
-							$temp$dict = right;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-				}
-			}
-		}
-	});
-var $elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$get, key, dict);
-		if (_v0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
-var $elm$core$Set$member = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return A2($elm$core$Dict$member, key, dict);
-	});
-var $elm$core$Basics$min = F2(
-	function (x, y) {
-		return (_Utils_cmp(x, y) < 0) ? x : y;
-	});
-var $elm$core$List$minimum = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(
-			A3($elm$core$List$foldl, $elm$core$Basics$min, x, xs));
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $elm$svg$Svg$Attributes$pointerEvents = _VirtualDom_attribute('pointer-events');
-var $elm$core$Tuple$second = function (_v0) {
-	var y = _v0.b;
-	return y;
-};
 var $elm$core$Basics$ge = _Utils_ge;
+var $elm$svg$Svg$Attributes$id = _VirtualDom_attribute('id');
+var $author$project$Main$rotatePoint = F3(
+	function (k, _v0, _v1) {
+		var h = _v0.a;
+		var w = _v0.b;
+		var x = _v1.a;
+		var y = _v1.b;
+		var wf = w;
+		var hf = h;
+		var _v2 = A2($elm$core$Basics$modBy, 4, k);
+		switch (_v2) {
+			case 0:
+				return _Utils_Tuple2(x, y);
+			case 1:
+				return _Utils_Tuple2(hf - y, x);
+			case 2:
+				return _Utils_Tuple2(wf - x, hf - y);
+			default:
+				return _Utils_Tuple2(y, wf - x);
+		}
+	});
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$Main$specDims = function (spec) {
+	return _Utils_Tuple2(
+		$elm$core$List$length(spec.grid),
+		A2(
+			$elm$core$Maybe$withDefault,
+			0,
+			A2(
+				$elm$core$Maybe$map,
+				$elm$core$String$length,
+				$elm$core$List$head(spec.grid))));
+};
+var $author$project$Main$placedBandPath = F2(
+	function (p, spec) {
+		return A2(
+			$elm$core$List$map,
+			function (_v0) {
+				var x = _v0.a;
+				var y = _v0.b;
+				return _Utils_Tuple2(x + p.col, y + p.row);
+			},
+			A2(
+				$elm$core$List$map,
+				A2(
+					$author$project$Main$rotatePoint,
+					p.rotation,
+					$author$project$Main$specDims(spec)),
+				spec.bandPath));
+	});
+var $author$project$Main$placedLetterPos = F2(
+	function (p, spec) {
+		var _v0 = A3(
+			$author$project$Main$rotatePoint,
+			p.rotation,
+			$author$project$Main$specDims(spec),
+			spec.letterPos);
+		var x = _v0.a;
+		var y = _v0.b;
+		return _Utils_Tuple2(x + p.col, y + p.row);
+	});
+var $elm$svg$Svg$Attributes$pointerEvents = _VirtualDom_attribute('pointer-events');
+var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
+var $elm$svg$Svg$polyline = $elm$svg$Svg$trustedNode('polyline');
 var $elm$core$String$foldr = _String_foldr;
 var $elm$core$String$toList = function (string) {
 	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
@@ -6041,55 +6034,6 @@ var $author$project$Main$rotateCell = F3(
 				return _Utils_Tuple2(r, (w - 1) - c);
 		}
 	});
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
-var $author$project$Main$specDims = function (spec) {
-	return _Utils_Tuple2(
-		$elm$core$List$length(spec.grid),
-		A2(
-			$elm$core$Maybe$withDefault,
-			0,
-			A2(
-				$elm$core$Maybe$map,
-				$elm$core$String$length,
-				$elm$core$List$head(spec.grid))));
-};
-var $author$project$Main$specBandRotated = F2(
-	function (k, spec) {
-		var _v0 = spec.bandRows;
-		var r1 = _v0.a;
-		var r2 = _v0.b;
-		return A2(
-			$elm$core$List$map,
-			A2(
-				$author$project$Main$rotateCell,
-				k,
-				$author$project$Main$specDims(spec)),
-			A2(
-				$elm$core$List$filter,
-				function (_v1) {
-					var r = _v1.b;
-					return (_Utils_cmp(r, r1) > -1) && (_Utils_cmp(r, r2) < 1);
-				},
-				$author$project$Main$parseGrid(spec.grid)));
-	});
 var $author$project$Main$specCellsRotated = F2(
 	function (k, spec) {
 		return A2(
@@ -6112,6 +6056,8 @@ var $elm$html$Html$Events$stopPropagationOn = F2(
 	});
 var $elm$svg$Svg$Events$stopPropagationOn = $elm$html$Html$Events$stopPropagationOn;
 var $elm$svg$Svg$Attributes$stroke = _VirtualDom_attribute('stroke');
+var $elm$svg$Svg$Attributes$strokeLinecap = _VirtualDom_attribute('stroke-linecap');
+var $elm$svg$Svg$Attributes$strokeLinejoin = _VirtualDom_attribute('stroke-linejoin');
 var $elm$svg$Svg$Attributes$strokeWidth = _VirtualDom_attribute('stroke-width');
 var $elm$svg$Svg$Attributes$style = _VirtualDom_attribute('style');
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
@@ -6137,38 +6083,21 @@ var $author$project$Main$drawTile = F4(
 						A2($elm$json$Json$Decode$field, 'clientY', $elm$json$Json$Decode$float)));
 			});
 		var letter = function () {
-			var minOr0 = A2(
-				$elm$core$Basics$composeR,
-				$elm$core$List$minimum,
-				$elm$core$Maybe$withDefault(0));
-			var maxOr0 = A2(
-				$elm$core$Basics$composeR,
-				$elm$core$List$maximum,
-				$elm$core$Maybe$withDefault(0));
-			var band = A2(
-				$elm$core$List$map,
-				function (_v4) {
-					var c = _v4.a;
-					var r = _v4.b;
-					return _Utils_Tuple2(c + p.col, r + p.row);
-				},
-				A2($author$project$Main$specBandRotated, p.rotation, spec));
-			var xs = A2($elm$core$List$map, $elm$core$Tuple$first, band);
-			var cx = (((minOr0(xs) + maxOr0(xs)) + 1) / 2) * $author$project$Main$u;
-			var ys = A2($elm$core$List$map, $elm$core$Tuple$second, band);
-			var cy = (((minOr0(ys) + maxOr0(ys)) + 1) / 2) * $author$project$Main$u;
+			var _v5 = A2($author$project$Main$placedLetterPos, p, spec);
+			var lx = _v5.a;
+			var ly = _v5.b;
 			return A2(
 				$elm$svg$Svg$text_,
 				_List_fromArray(
 					[
 						$elm$svg$Svg$Attributes$x(
-						$elm$core$String$fromFloat(cx)),
+						$elm$core$String$fromFloat(lx * $author$project$Main$u)),
 						$elm$svg$Svg$Attributes$y(
-						$elm$core$String$fromFloat(cy)),
+						$elm$core$String$fromFloat(ly * $author$project$Main$u)),
 						$elm$svg$Svg$Attributes$textAnchor('middle'),
 						$elm$svg$Svg$Attributes$dominantBaseline('central'),
 						$elm$svg$Svg$Attributes$fontSize(
-						$elm$core$String$fromFloat($author$project$Main$u * 1.2)),
+						$elm$core$String$fromFloat($author$project$Main$u * 1.0)),
 						$elm$svg$Svg$Attributes$fontFamily('Georgia, serif'),
 						$elm$svg$Svg$Attributes$fontStyle('italic'),
 						$elm$svg$Svg$Attributes$fontWeight('bold'),
@@ -6191,6 +6120,25 @@ var $author$project$Main$drawTile = F4(
 						$elm$svg$Svg$Attributes$pointerEvents('none')
 					]);
 			});
+		var clipRect = function (_v4) {
+			var c = _v4.a;
+			var r = _v4.b;
+			return A2(
+				$elm$svg$Svg$rect,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$x(
+						$elm$core$String$fromInt(c * $author$project$Main$u)),
+						$elm$svg$Svg$Attributes$y(
+						$elm$core$String$fromInt(r * $author$project$Main$u)),
+						$elm$svg$Svg$Attributes$width(
+						$elm$core$String$fromInt($author$project$Main$u)),
+						$elm$svg$Svg$Attributes$height(
+						$elm$core$String$fromInt($author$project$Main$u))
+					]),
+				_List_Nil);
+		};
+		var clipId = 'tile-clip-' + (spec.name + ('-' + $elm$core$String$fromInt(p.id)));
 		var cells = A2(
 			$elm$core$List$map,
 			function (_v3) {
@@ -6199,6 +6147,19 @@ var $author$project$Main$drawTile = F4(
 				return _Utils_Tuple2(c + p.col, r + p.row);
 			},
 			A2($author$project$Main$specCellsRotated, p.rotation, spec));
+		var clipDef = A2(
+			$elm$svg$Svg$defs,
+			_List_Nil,
+			_List_fromArray(
+				[
+					A2(
+					$elm$svg$Svg$clipPath,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$id(clipId)
+						]),
+					A2($elm$core$List$map, clipRect, cells))
+				]));
 		var selection = isSelected ? A2(
 			$elm$core$List$map,
 			function (_v2) {
@@ -6224,18 +6185,9 @@ var $author$project$Main$drawTile = F4(
 					_List_Nil);
 			},
 			cells) : _List_Nil;
-		var bandSet = $elm$core$Set$fromList(
-			A2(
-				$elm$core$List$map,
-				function (_v1) {
-					var c = _v1.a;
-					var r = _v1.b;
-					return _Utils_Tuple2(c + p.col, r + p.row);
-				},
-				A2($author$project$Main$specBandRotated, p.rotation, spec)));
-		var cellRect = function (_v0) {
-			var c = _v0.a;
-			var r = _v0.b;
+		var cellRect = function (_v1) {
+			var c = _v1.a;
+			var r = _v1.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_Utils_ap(
@@ -6249,43 +6201,92 @@ var $author$project$Main$drawTile = F4(
 							$elm$core$String$fromInt($author$project$Main$u)),
 							$elm$svg$Svg$Attributes$height(
 							$elm$core$String$fromInt($author$project$Main$u)),
-							$elm$svg$Svg$Attributes$fill(
-							A2(
-								$elm$core$Set$member,
-								_Utils_Tuple2(c, r),
-								bandSet) ? '#fff200' : spec.color),
+							$elm$svg$Svg$Attributes$fill(spec.color),
 							$elm$svg$Svg$Attributes$stroke('#333'),
 							$elm$svg$Svg$Attributes$strokeWidth('0.6')
 						]),
 					A2(interaction, c, r)),
 				_List_Nil);
 		};
-		return _Utils_ap(
-			A2($elm$core$List$map, cellRect, cells),
+		var bandList = function () {
+			var path = A2($author$project$Main$placedBandPath, p, spec);
+			var pts = A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					function (_v0) {
+						var x = _v0.a;
+						var y = _v0.b;
+						return $elm$core$String$fromFloat(x * $author$project$Main$u) + (',' + $elm$core$String$fromFloat(y * $author$project$Main$u));
+					},
+					path));
+			return ($elm$core$List$length(path) >= 2) ? _List_fromArray(
+				[
+					A2(
+					$elm$svg$Svg$polyline,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$points(pts),
+							$elm$svg$Svg$Attributes$stroke('#fff200'),
+							$elm$svg$Svg$Attributes$strokeWidth(
+							$elm$core$String$fromInt($author$project$Main$u)),
+							$elm$svg$Svg$Attributes$fill('none'),
+							$elm$svg$Svg$Attributes$strokeLinejoin('miter'),
+							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
+							$elm$svg$Svg$Attributes$clipPath('url(#' + (clipId + ')')),
+							$elm$svg$Svg$Attributes$pointerEvents('none')
+						]),
+					_List_Nil)
+				]) : _List_Nil;
+		}();
+		return A2(
+			$elm$core$List$cons,
+			clipDef,
 			_Utils_ap(
-				selection,
-				_List_fromArray(
-					[letter])));
+				A2($elm$core$List$map, cellRect, cells),
+				_Utils_ap(
+					bandList,
+					_Utils_ap(
+						selection,
+						_List_fromArray(
+							[letter])))));
 	});
 var $author$project$Main$tileA = {
-	bandRows: _Utils_Tuple2(2, 3),
+	bandPath: _List_fromArray(
+		[
+			_Utils_Tuple2(0, 3),
+			_Utils_Tuple2(8, 3)
+		]),
 	color: '#a4bcd9',
 	grid: _List_fromArray(
 		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
+	letterPos: _Utils_Tuple2(4, 3),
 	name: 'A'
 };
 var $author$project$Main$tileR = {
-	bandRows: _Utils_Tuple2(4, 5),
+	bandPath: _List_fromArray(
+		[
+			_Utils_Tuple2(4, 0),
+			_Utils_Tuple2(4, 5),
+			_Utils_Tuple2(8, 5)
+		]),
 	color: '#f58686',
 	grid: _List_fromArray(
 		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
+	letterPos: _Utils_Tuple2(6, 5),
 	name: 'R'
 };
 var $author$project$Main$tileT = {
-	bandRows: _Utils_Tuple2(1, 2),
+	bandPath: _List_fromArray(
+		[
+			_Utils_Tuple2(0, 2),
+			_Utils_Tuple2(6, 2)
+		]),
 	color: '#99d7a0',
 	grid: _List_fromArray(
 		['..####', '######', '######', '.####.', '.####.', '..###.']),
+	letterPos: _Utils_Tuple2(3, 2),
 	name: 'T'
 };
 var $author$project$Main$allSpecs = _List_fromArray(

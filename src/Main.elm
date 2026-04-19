@@ -7,8 +7,7 @@ import Html exposing (Html, button, div, h3, p, text)
 import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
-import Set exposing (Set)
-import Svg exposing (Svg, line, rect, svg, text_)
+import Svg exposing (Svg, defs, line, polyline, rect, svg, text_)
 import Svg.Attributes as SA
 import Svg.Events as SE
 import Task
@@ -31,7 +30,8 @@ type alias TileSpec =
     { name : String
     , color : String
     , grid : List String
-    , bandRows : ( Int, Int )
+    , bandPath : List ( Float, Float )
+    , letterPos : ( Float, Float )
     }
 
 
@@ -49,7 +49,8 @@ tileA =
         , ".######."
         , ".##....."
         ]
-    , bandRows = ( 2, 3 )
+    , bandPath = [ ( 0, 3 ), ( 8, 3 ) ]
+    , letterPos = ( 4, 3 )
     }
 
 
@@ -67,7 +68,8 @@ tileR =
         , "######.."
         , "...###.."
         ]
-    , bandRows = ( 4, 5 )
+    , bandPath = [ ( 4, 0 ), ( 4, 5 ), ( 8, 5 ) ]
+    , letterPos = ( 6, 5 )
     }
 
 
@@ -83,7 +85,8 @@ tileT =
         , ".####."
         , "..###."
         ]
-    , bandRows = ( 1, 2 )
+    , bandPath = [ ( 0, 2 ), ( 6, 2 ) ]
+    , letterPos = ( 3, 2 )
     }
 
 
@@ -149,15 +152,46 @@ specCellsRotated k spec =
     parseGrid spec.grid |> List.map (rotateCell k (specDims spec))
 
 
-specBandRotated : Int -> TileSpec -> List ( Int, Int )
-specBandRotated k spec =
+{-| Rotate a point (x, y) k quarter-turns clockwise within an H x W grid
+whose coordinates run 0..H, 0..W (continuous, not cell-indexed).
+-}
+rotatePoint : Int -> ( Int, Int ) -> ( Float, Float ) -> ( Float, Float )
+rotatePoint k ( h, w ) ( x, y ) =
     let
-        ( r1, r2 ) =
-            spec.bandRows
+        hf =
+            toFloat h
+
+        wf =
+            toFloat w
     in
-    parseGrid spec.grid
-        |> List.filter (\( _, r ) -> r >= r1 && r <= r2)
-        |> List.map (rotateCell k (specDims spec))
+    case modBy 4 k of
+        0 ->
+            ( x, y )
+
+        1 ->
+            ( hf - y, x )
+
+        2 ->
+            ( wf - x, hf - y )
+
+        _ ->
+            ( y, wf - x )
+
+
+placedBandPath : PlacedTile -> TileSpec -> List ( Float, Float )
+placedBandPath p spec =
+    spec.bandPath
+        |> List.map (rotatePoint p.rotation (specDims spec))
+        |> List.map (\( x, y ) -> ( x + toFloat p.col, y + toFloat p.row ))
+
+
+placedLetterPos : PlacedTile -> TileSpec -> ( Float, Float )
+placedLetterPos p spec =
+    let
+        ( x, y ) =
+            rotatePoint p.rotation (specDims spec) spec.letterPos
+    in
+    ( x + toFloat p.col, y + toFloat p.row )
 
 
 
@@ -453,10 +487,8 @@ drawTile onBoard isSelected p spec =
             specCellsRotated p.rotation spec
                 |> List.map (\( c, r ) -> ( c + p.col, r + p.row ))
 
-        bandSet =
-            specBandRotated p.rotation spec
-                |> List.map (\( c, r ) -> ( c + p.col, r + p.row ))
-                |> Set.fromList
+        clipId =
+            "tile-clip-" ++ spec.name ++ "-" ++ String.fromInt p.id
 
         tileHandler c r =
             SE.stopPropagationOn "mousedown"
@@ -481,18 +513,59 @@ drawTile onBoard isSelected p spec =
                  , SA.y (String.fromInt (r * u))
                  , SA.width (String.fromInt u)
                  , SA.height (String.fromInt u)
-                 , SA.fill
-                    (if Set.member ( c, r ) bandSet then
-                        "#fff200"
-
-                     else
-                        spec.color
-                    )
+                 , SA.fill spec.color
                  , SA.stroke "#333"
                  , SA.strokeWidth "0.6"
                  ]
                     ++ interaction c r
                 )
+                []
+
+        clipRect ( c, r ) =
+            rect
+                [ SA.x (String.fromInt (c * u))
+                , SA.y (String.fromInt (r * u))
+                , SA.width (String.fromInt u)
+                , SA.height (String.fromInt u)
+                ]
+                []
+
+        clipDef =
+            defs []
+                [ Svg.clipPath [ SA.id clipId ]
+                    (List.map clipRect cells)
+                ]
+
+        bandList =
+            let
+                path =
+                    placedBandPath p spec
+
+                pts =
+                    path
+                        |> List.map
+                            (\( x, y ) ->
+                                String.fromFloat (x * toFloat u)
+                                    ++ ","
+                                    ++ String.fromFloat (y * toFloat u)
+                            )
+                        |> String.join " "
+            in
+            if List.length path >= 2 then
+                [ polyline
+                    [ SA.points pts
+                    , SA.stroke "#fff200"
+                    , SA.strokeWidth (String.fromInt u)
+                    , SA.fill "none"
+                    , SA.strokeLinejoin "miter"
+                    , SA.strokeLinecap "butt"
+                    , SA.clipPath ("url(#" ++ clipId ++ ")")
+                    , SA.pointerEvents "none"
+                    ]
+                    []
+                ]
+
+            else
                 []
 
         selection =
@@ -518,34 +591,15 @@ drawTile onBoard isSelected p spec =
 
         letter =
             let
-                band =
-                    specBandRotated p.rotation spec
-                        |> List.map (\( c, r ) -> ( c + p.col, r + p.row ))
-
-                xs =
-                    List.map Tuple.first band
-
-                ys =
-                    List.map Tuple.second band
-
-                minOr0 =
-                    List.minimum >> Maybe.withDefault 0
-
-                maxOr0 =
-                    List.maximum >> Maybe.withDefault 0
-
-                cx =
-                    toFloat (minOr0 xs + maxOr0 xs + 1) / 2 * toFloat u
-
-                cy =
-                    toFloat (minOr0 ys + maxOr0 ys + 1) / 2 * toFloat u
+                ( lx, ly ) =
+                    placedLetterPos p spec
             in
             text_
-                [ SA.x (String.fromFloat cx)
-                , SA.y (String.fromFloat cy)
+                [ SA.x (String.fromFloat (lx * toFloat u))
+                , SA.y (String.fromFloat (ly * toFloat u))
                 , SA.textAnchor "middle"
                 , SA.dominantBaseline "central"
-                , SA.fontSize (String.fromFloat (toFloat u * 1.2))
+                , SA.fontSize (String.fromFloat (toFloat u * 1.0))
                 , SA.fontFamily "Georgia, serif"
                 , SA.fontStyle "italic"
                 , SA.fontWeight "bold"
@@ -554,7 +608,7 @@ drawTile onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    List.map cellRect cells ++ selection ++ [ letter ]
+    clipDef :: List.map cellRect cells ++ bandList ++ selection ++ [ letter ]
 
 
 mouseDecoder : (Int -> Int -> Msg) -> D.Decoder Msg
