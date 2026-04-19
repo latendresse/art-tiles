@@ -4548,6 +4548,89 @@ function _File_toUrl(blob)
 	});
 }
 
+
+
+
+function _Time_now(millisToPosix)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		callback(_Scheduler_succeed(millisToPosix(Date.now())));
+	});
+}
+
+var _Time_setInterval = F2(function(interval, task)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var id = setInterval(function() { _Scheduler_rawSpawn(task); }, interval);
+		return function() { clearInterval(id); };
+	});
+});
+
+function _Time_here()
+{
+	return _Scheduler_binding(function(callback)
+	{
+		callback(_Scheduler_succeed(
+			A2($elm$time$Time$customZone, -(new Date().getTimezoneOffset()), _List_Nil)
+		));
+	});
+}
+
+
+function _Time_getZoneName()
+{
+	return _Scheduler_binding(function(callback)
+	{
+		try
+		{
+			var name = $elm$time$Time$Name(Intl.DateTimeFormat().resolvedOptions().timeZone);
+		}
+		catch (e)
+		{
+			var name = $elm$time$Time$Offset(new Date().getTimezoneOffset());
+		}
+		callback(_Scheduler_succeed(name));
+	});
+}
+
+
+
+var _Bitwise_and = F2(function(a, b)
+{
+	return a & b;
+});
+
+var _Bitwise_or = F2(function(a, b)
+{
+	return a | b;
+});
+
+var _Bitwise_xor = F2(function(a, b)
+{
+	return a ^ b;
+});
+
+function _Bitwise_complement(a)
+{
+	return ~a;
+};
+
+var _Bitwise_shiftLeftBy = F2(function(offset, a)
+{
+	return a << offset;
+});
+
+var _Bitwise_shiftRightBy = F2(function(offset, a)
+{
+	return a >> offset;
+});
+
+var _Bitwise_shiftRightZfBy = F2(function(offset, a)
+{
+	return a >>> offset;
+});
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$GT = {$: 'GT'};
 var $elm$core$Basics$LT = {$: 'LT'};
@@ -5816,6 +5899,16 @@ var $author$project$Main$DraggingPan = function (a) {
 var $author$project$Main$DraggingTile = function (a) {
 	return {$: 'DraggingTile', a: a};
 };
+var $author$project$Main$LoadFileLoaded = function (a) {
+	return {$: 'LoadFileLoaded', a: a};
+};
+var $author$project$Main$LoadFileSelected = function (a) {
+	return {$: 'LoadFileSelected', a: a};
+};
+var $author$project$Main$SaveAtTime = F2(
+	function (a, b) {
+		return {$: 'SaveAtTime', a: a, b: b};
+	});
 var $elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -6061,6 +6154,48 @@ var $author$project$Main$allOccupiedCells = F2(
 				},
 				placed));
 	});
+var $elm$json$Json$Decode$decodeString = _Json_runOnString;
+var $author$project$Main$SavedTile = F4(
+	function (kind, col, row, rotation) {
+		return {col: col, kind: kind, rotation: rotation, row: row};
+	});
+var $elm$json$Json$Decode$map4 = _Json_map4;
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Main$decodeSavedTile = A5(
+	$elm$json$Json$Decode$map4,
+	$author$project$Main$SavedTile,
+	A2($elm$json$Json$Decode$field, 'kind', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'col', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'row', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'rotation', $elm$json$Json$Decode$int));
+var $elm$json$Json$Decode$list = _Json_decodeList;
+var $author$project$Main$decodeTiling = A2(
+	$elm$json$Json$Decode$field,
+	'tiles',
+	$elm$json$Json$Decode$list($author$project$Main$decodeSavedTile));
+var $elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $elm$file$File$Select$file = F2(
+	function (mimes, toMsg) {
+		return A2(
+			$elm$core$Task$perform,
+			toMsg,
+			_File_uploadOne(mimes));
+	});
+var $elm$time$Time$Name = function (a) {
+	return {$: 'Name', a: a};
+};
+var $elm$time$Time$Offset = function (a) {
+	return {$: 'Offset', a: a};
+};
+var $elm$time$Time$Zone = F2(
+	function (a, b) {
+		return {$: 'Zone', a: a, b: b};
+	});
+var $elm$time$Time$customZone = $elm$time$Time$Zone;
+var $elm$time$Time$here = _Time_here(_Utils_Tuple0);
 var $author$project$Main$maxU = 60;
 var $elm$core$Basics$min = F2(
 	function (x, y) {
@@ -6069,6 +6204,7 @@ var $elm$core$Basics$min = F2(
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
 var $elm$json$Json$Encode$int = _Json_wrap;
 var $elm$json$Json$Encode$object = function (pairs) {
 	return _Json_wrap(
@@ -6126,10 +6262,6 @@ var $author$project$Main$encodeTiling = function (model) {
 					A2($elm$json$Json$Encode$list, $author$project$Main$encodeTile, model.placed))
 				])));
 };
-var $elm$time$Time$Posix = function (a) {
-	return {$: 'Posix', a: a};
-};
-var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
 var $elm$file$File$Download$string = F3(
 	function (name, mime, content) {
 		return A2(
@@ -6137,13 +6269,247 @@ var $elm$file$File$Download$string = F3(
 			$elm$core$Basics$never,
 			A3(_File_download, name, mime, content));
 	});
-var $author$project$Main$saveCmd = function (model) {
-	return A3(
-		$elm$file$File$Download$string,
-		'tiling.json',
-		'application/json',
-		$author$project$Main$encodeTiling(model));
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var $author$project$Main$monthNum = function (m) {
+	switch (m.$) {
+		case 'Jan':
+			return 1;
+		case 'Feb':
+			return 2;
+		case 'Mar':
+			return 3;
+		case 'Apr':
+			return 4;
+		case 'May':
+			return 5;
+		case 'Jun':
+			return 6;
+		case 'Jul':
+			return 7;
+		case 'Aug':
+			return 8;
+		case 'Sep':
+			return 9;
+		case 'Oct':
+			return 10;
+		case 'Nov':
+			return 11;
+		default:
+			return 12;
+	}
 };
+var $elm$core$String$cons = _String_cons;
+var $elm$core$String$fromChar = function (_char) {
+	return A2($elm$core$String$cons, _char, '');
+};
+var $elm$core$Bitwise$and = _Bitwise_and;
+var $elm$core$Bitwise$shiftRightBy = _Bitwise_shiftRightBy;
+var $elm$core$String$repeatHelp = F3(
+	function (n, chunk, result) {
+		return (n <= 0) ? result : A3(
+			$elm$core$String$repeatHelp,
+			n >> 1,
+			_Utils_ap(chunk, chunk),
+			(!(n & 1)) ? result : _Utils_ap(result, chunk));
+	});
+var $elm$core$String$repeat = F2(
+	function (n, chunk) {
+		return A3($elm$core$String$repeatHelp, n, chunk, '');
+	});
+var $elm$core$String$padLeft = F3(
+	function (n, _char, string) {
+		return _Utils_ap(
+			A2(
+				$elm$core$String$repeat,
+				n - $elm$core$String$length(string),
+				$elm$core$String$fromChar(_char)),
+			string);
+	});
+var $elm$time$Time$flooredDiv = F2(
+	function (numerator, denominator) {
+		return $elm$core$Basics$floor(numerator / denominator);
+	});
+var $elm$time$Time$posixToMillis = function (_v0) {
+	var millis = _v0.a;
+	return millis;
+};
+var $elm$time$Time$toAdjustedMinutesHelp = F3(
+	function (defaultOffset, posixMinutes, eras) {
+		toAdjustedMinutesHelp:
+		while (true) {
+			if (!eras.b) {
+				return posixMinutes + defaultOffset;
+			} else {
+				var era = eras.a;
+				var olderEras = eras.b;
+				if (_Utils_cmp(era.start, posixMinutes) < 0) {
+					return posixMinutes + era.offset;
+				} else {
+					var $temp$defaultOffset = defaultOffset,
+						$temp$posixMinutes = posixMinutes,
+						$temp$eras = olderEras;
+					defaultOffset = $temp$defaultOffset;
+					posixMinutes = $temp$posixMinutes;
+					eras = $temp$eras;
+					continue toAdjustedMinutesHelp;
+				}
+			}
+		}
+	});
+var $elm$time$Time$toAdjustedMinutes = F2(
+	function (_v0, time) {
+		var defaultOffset = _v0.a;
+		var eras = _v0.b;
+		return A3(
+			$elm$time$Time$toAdjustedMinutesHelp,
+			defaultOffset,
+			A2(
+				$elm$time$Time$flooredDiv,
+				$elm$time$Time$posixToMillis(time),
+				60000),
+			eras);
+	});
+var $elm$core$Basics$ge = _Utils_ge;
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $elm$time$Time$toCivil = function (minutes) {
+	var rawDay = A2($elm$time$Time$flooredDiv, minutes, 60 * 24) + 719468;
+	var era = (((rawDay >= 0) ? rawDay : (rawDay - 146096)) / 146097) | 0;
+	var dayOfEra = rawDay - (era * 146097);
+	var yearOfEra = ((((dayOfEra - ((dayOfEra / 1460) | 0)) + ((dayOfEra / 36524) | 0)) - ((dayOfEra / 146096) | 0)) / 365) | 0;
+	var dayOfYear = dayOfEra - (((365 * yearOfEra) + ((yearOfEra / 4) | 0)) - ((yearOfEra / 100) | 0));
+	var mp = (((5 * dayOfYear) + 2) / 153) | 0;
+	var month = mp + ((mp < 10) ? 3 : (-9));
+	var year = yearOfEra + (era * 400);
+	return {
+		day: (dayOfYear - ((((153 * mp) + 2) / 5) | 0)) + 1,
+		month: month,
+		year: year + ((month <= 2) ? 1 : 0)
+	};
+};
+var $elm$time$Time$toDay = F2(
+	function (zone, time) {
+		return $elm$time$Time$toCivil(
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).day;
+	});
+var $elm$time$Time$toHour = F2(
+	function (zone, time) {
+		return A2(
+			$elm$core$Basics$modBy,
+			24,
+			A2(
+				$elm$time$Time$flooredDiv,
+				A2($elm$time$Time$toAdjustedMinutes, zone, time),
+				60));
+	});
+var $elm$time$Time$toMinute = F2(
+	function (zone, time) {
+		return A2(
+			$elm$core$Basics$modBy,
+			60,
+			A2($elm$time$Time$toAdjustedMinutes, zone, time));
+	});
+var $elm$time$Time$Apr = {$: 'Apr'};
+var $elm$time$Time$Aug = {$: 'Aug'};
+var $elm$time$Time$Dec = {$: 'Dec'};
+var $elm$time$Time$Feb = {$: 'Feb'};
+var $elm$time$Time$Jan = {$: 'Jan'};
+var $elm$time$Time$Jul = {$: 'Jul'};
+var $elm$time$Time$Jun = {$: 'Jun'};
+var $elm$time$Time$Mar = {$: 'Mar'};
+var $elm$time$Time$May = {$: 'May'};
+var $elm$time$Time$Nov = {$: 'Nov'};
+var $elm$time$Time$Oct = {$: 'Oct'};
+var $elm$time$Time$Sep = {$: 'Sep'};
+var $elm$time$Time$toMonth = F2(
+	function (zone, time) {
+		var _v0 = $elm$time$Time$toCivil(
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).month;
+		switch (_v0) {
+			case 1:
+				return $elm$time$Time$Jan;
+			case 2:
+				return $elm$time$Time$Feb;
+			case 3:
+				return $elm$time$Time$Mar;
+			case 4:
+				return $elm$time$Time$Apr;
+			case 5:
+				return $elm$time$Time$May;
+			case 6:
+				return $elm$time$Time$Jun;
+			case 7:
+				return $elm$time$Time$Jul;
+			case 8:
+				return $elm$time$Time$Aug;
+			case 9:
+				return $elm$time$Time$Sep;
+			case 10:
+				return $elm$time$Time$Oct;
+			case 11:
+				return $elm$time$Time$Nov;
+			default:
+				return $elm$time$Time$Dec;
+		}
+	});
+var $elm$time$Time$toSecond = F2(
+	function (_v0, time) {
+		return A2(
+			$elm$core$Basics$modBy,
+			60,
+			A2(
+				$elm$time$Time$flooredDiv,
+				$elm$time$Time$posixToMillis(time),
+				1000));
+	});
+var $elm$time$Time$toYear = F2(
+	function (zone, time) {
+		return $elm$time$Time$toCivil(
+			A2($elm$time$Time$toAdjustedMinutes, zone, time)).year;
+	});
+var $author$project$Main$timestampName = F2(
+	function (zone, posix) {
+		var pad4 = A2(
+			$elm$core$Basics$composeL,
+			A2(
+				$elm$core$String$padLeft,
+				4,
+				_Utils_chr('0')),
+			$elm$core$String$fromInt);
+		var pad2 = A2(
+			$elm$core$Basics$composeL,
+			A2(
+				$elm$core$String$padLeft,
+				2,
+				_Utils_chr('0')),
+			$elm$core$String$fromInt);
+		return 'tiling-' + (pad4(
+			A2($elm$time$Time$toYear, zone, posix)) + (pad2(
+			$author$project$Main$monthNum(
+				A2($elm$time$Time$toMonth, zone, posix))) + (pad2(
+			A2($elm$time$Time$toDay, zone, posix)) + ('-' + (pad2(
+			A2($elm$time$Time$toHour, zone, posix)) + (pad2(
+			A2($elm$time$Time$toMinute, zone, posix)) + (pad2(
+			A2($elm$time$Time$toSecond, zone, posix)) + '.json')))))));
+	});
+var $author$project$Main$saveCmd = F3(
+	function (zone, posix, model) {
+		return A3(
+			$elm$file$File$Download$string,
+			A2($author$project$Main$timestampName, zone, posix),
+			'application/json',
+			$author$project$Main$encodeTiling(model));
+	});
+var $author$project$Main$savedToPlaced = F2(
+	function (id, s) {
+		return {col: s.col, id: id, kind: s.kind, rotation: s.rotation, row: s.row};
+	});
+var $elm$file$File$toString = _File_toString;
 var $elm$core$Dict$filter = F2(
 	function (isGood, dict) {
 		return A3(
@@ -6436,15 +6802,68 @@ var $author$project$Main$update = F2(
 						return _Utils_update(
 							model,
 							{panX: 0, panY: 0, u: $author$project$Main$defaultU});
-					default:
+					case 'SaveMsg':
 						return model;
+					case 'SaveAtTime':
+						return model;
+					case 'LoadMsg':
+						return model;
+					case 'LoadFileSelected':
+						return model;
+					default:
+						var content = msg.a;
+						var _v7 = A2($elm$json$Json$Decode$decodeString, $author$project$Main$decodeTiling, content);
+						if (_v7.$ === 'Ok') {
+							var saved = _v7.a;
+							var startId = model.nextId;
+							var newTiles = A2(
+								$elm$core$List$indexedMap,
+								F2(
+									function (i, s) {
+										return A2($author$project$Main$savedToPlaced, startId + i, s);
+									}),
+								saved);
+							return _Utils_update(
+								model,
+								{
+									drag: $elm$core$Maybe$Nothing,
+									nextId: startId + $elm$core$List$length(saved),
+									panX: 0,
+									panY: 0,
+									placed: newTiles,
+									selectedKind: $elm$core$Maybe$Nothing,
+									selectedPlaced: $elm$core$Maybe$Nothing
+								});
+						} else {
+							return model;
+						}
 				}
 			}(),
 			function () {
-				if (msg.$ === 'SaveMsg') {
-					return $author$project$Main$saveCmd(model);
-				} else {
-					return $elm$core$Platform$Cmd$none;
+				switch (msg.$) {
+					case 'SaveMsg':
+						return A2(
+							$elm$core$Task$perform,
+							$elm$core$Basics$identity,
+							A3($elm$core$Task$map2, $author$project$Main$SaveAtTime, $elm$time$Time$here, $elm$time$Time$now));
+					case 'SaveAtTime':
+						var zone = msg.a;
+						var posix = msg.b;
+						return A3($author$project$Main$saveCmd, zone, posix, model);
+					case 'LoadMsg':
+						return A2(
+							$elm$file$File$Select$file,
+							_List_fromArray(
+								['application/json']),
+							$author$project$Main$LoadFileSelected);
+					case 'LoadFileSelected':
+						var file = msg.a;
+						return A2(
+							$elm$core$Task$perform,
+							$author$project$Main$LoadFileLoaded,
+							$elm$file$File$toString(file));
+					default:
+						return $elm$core$Platform$Cmd$none;
 				}
 			}());
 	});
@@ -6466,7 +6885,6 @@ var $author$project$Main$BoardMouseDown = F4(
 	function (a, b, c, d) {
 		return {$: 'BoardMouseDown', a: a, b: b, c: c, d: d};
 	});
-var $elm$json$Json$Decode$map4 = _Json_map4;
 var $author$project$Main$boardMouseDownDecoder = A5(
 	$elm$json$Json$Decode$map4,
 	$author$project$Main$BoardMouseDown,
@@ -6531,7 +6949,6 @@ var $elm$svg$Svg$Attributes$fontSize = _VirtualDom_attribute('font-size');
 var $elm$svg$Svg$Attributes$fontStyle = _VirtualDom_attribute('font-style');
 var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
 var $elm$core$String$fromFloat = _String_fromNumber;
-var $elm$core$Basics$ge = _Utils_ge;
 var $elm$svg$Svg$Attributes$id = _VirtualDom_attribute('id');
 var $author$project$Main$rotatePoint = F3(
 	function (k, _v0, _v1) {
@@ -6935,9 +7352,6 @@ var $author$project$Main$gridLines = function (model) {
 			hLine,
 			A2($elm$core$List$range, minRow, maxRow)));
 };
-var $elm$core$Basics$negate = function (n) {
-	return -n;
-};
 var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
 var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
 var $author$project$Main$viewBoard = function (model) {
@@ -6980,6 +7394,7 @@ var $author$project$Main$viewBoard = function (model) {
 };
 var $author$project$Main$ClearMsg = {$: 'ClearMsg'};
 var $author$project$Main$DeleteMsg = {$: 'DeleteMsg'};
+var $author$project$Main$LoadMsg = {$: 'LoadMsg'};
 var $author$project$Main$ResetView = {$: 'ResetView'};
 var $author$project$Main$RotateMsg = {$: 'RotateMsg'};
 var $author$project$Main$SaveMsg = {$: 'SaveMsg'};
@@ -7181,6 +7596,16 @@ var $author$project$Main$viewSidebar = function (model) {
 						_List_fromArray(
 							[
 								$elm$html$Html$text('Save')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$LoadMsg)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Load')
 							]))
 					])),
 				A2(

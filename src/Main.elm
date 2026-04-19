@@ -3,7 +3,9 @@ module Main exposing (main)
 import Browser
 import Browser.Dom
 import Browser.Events
+import File exposing (File)
 import File.Download
+import File.Select
 import Html exposing (Html, button, div, h3, p, text)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -14,6 +16,7 @@ import Svg exposing (Svg, defs, g, line, polyline, rect, svg, text_)
 import Svg.Attributes as SA
 import Svg.Events as SE
 import Task
+import Time
 
 
 
@@ -322,9 +325,75 @@ encodeTiling model =
         )
 
 
-saveCmd : Model -> Cmd Msg
-saveCmd model =
-    File.Download.string "tiling.json" "application/json" (encodeTiling model)
+type alias SavedTile =
+    { kind : String
+    , col : Int
+    , row : Int
+    , rotation : Int
+    }
+
+
+decodeSavedTile : D.Decoder SavedTile
+decodeSavedTile =
+    D.map4 SavedTile
+        (D.field "kind" D.string)
+        (D.field "col" D.int)
+        (D.field "row" D.int)
+        (D.field "rotation" D.int)
+
+
+decodeTiling : D.Decoder (List SavedTile)
+decodeTiling =
+    D.field "tiles" (D.list decodeSavedTile)
+
+
+savedToPlaced : Int -> SavedTile -> PlacedTile
+savedToPlaced id s =
+    { id = id, kind = s.kind, col = s.col, row = s.row, rotation = s.rotation }
+
+
+monthNum : Time.Month -> Int
+monthNum m =
+    case m of
+        Time.Jan -> 1
+        Time.Feb -> 2
+        Time.Mar -> 3
+        Time.Apr -> 4
+        Time.May -> 5
+        Time.Jun -> 6
+        Time.Jul -> 7
+        Time.Aug -> 8
+        Time.Sep -> 9
+        Time.Oct -> 10
+        Time.Nov -> 11
+        Time.Dec -> 12
+
+
+timestampName : Time.Zone -> Time.Posix -> String
+timestampName zone posix =
+    let
+        pad2 =
+            String.padLeft 2 '0' << String.fromInt
+
+        pad4 =
+            String.padLeft 4 '0' << String.fromInt
+    in
+    "tiling-"
+        ++ pad4 (Time.toYear zone posix)
+        ++ pad2 (monthNum (Time.toMonth zone posix))
+        ++ pad2 (Time.toDay zone posix)
+        ++ "-"
+        ++ pad2 (Time.toHour zone posix)
+        ++ pad2 (Time.toMinute zone posix)
+        ++ pad2 (Time.toSecond zone posix)
+        ++ ".json"
+
+
+saveCmd : Time.Zone -> Time.Posix -> Model -> Cmd Msg
+saveCmd zone posix model =
+    File.Download.string (timestampName zone posix)
+        "application/json"
+        (encodeTiling model)
 
 
 
@@ -422,6 +491,10 @@ type Msg
     | ZoomOut
     | ResetView
     | SaveMsg
+    | SaveAtTime Time.Zone Time.Posix
+    | LoadMsg
+    | LoadFileSelected File
+    | LoadFileLoaded String
 
 
 
@@ -626,9 +699,52 @@ update msg model =
 
         SaveMsg ->
             model
+
+        SaveAtTime _ _ ->
+            model
+
+        LoadMsg ->
+            model
+
+        LoadFileSelected _ ->
+            model
+
+        LoadFileLoaded content ->
+            case D.decodeString decodeTiling content of
+                Ok saved ->
+                    let
+                        startId =
+                            model.nextId
+
+                        newTiles =
+                            List.indexedMap
+                                (\i s -> savedToPlaced (startId + i) s)
+                                saved
+                    in
+                    { model
+                        | placed = newTiles
+                        , nextId = startId + List.length saved
+                        , selectedPlaced = Nothing
+                        , selectedKind = Nothing
+                        , drag = Nothing
+                        , panX = 0
+                        , panY = 0
+                    }
+
+                Err _ ->
+                    model
     , case msg of
         SaveMsg ->
-            saveCmd model
+            Task.perform identity (Task.map2 SaveAtTime Time.here Time.now)
+
+        SaveAtTime zone posix ->
+            saveCmd zone posix model
+
+        LoadMsg ->
+            File.Select.file [ "application/json" ] LoadFileSelected
+
+        LoadFileSelected file ->
+            Task.perform LoadFileLoaded (File.toString file)
 
         _ ->
             Cmd.none
@@ -955,6 +1071,7 @@ viewSidebar model =
         , h3 [] [ text "File" ]
         , div [ HA.class "controls" ]
             [ button [ HE.onClick SaveMsg ] [ text "Save" ]
+            , button [ HE.onClick LoadMsg ] [ text "Load" ]
             ]
         , p [ HA.class "status" ]
             [ text
