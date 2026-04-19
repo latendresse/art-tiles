@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Dom
 import Browser.Events
 import Html exposing (Html, button, div, h3, p, text)
 import Html.Attributes as HA
@@ -10,26 +11,15 @@ import Set exposing (Set)
 import Svg exposing (Svg, line, rect, svg, text_)
 import Svg.Attributes as SA
 import Svg.Events as SE
+import Task
 
 
 
 -- ============================ Config ============================
 
 
-{-| screen pixels per one grid pixel
--}
 u : Int
 u =
-    22
-
-
-boardCols : Int
-boardCols =
-    34
-
-
-boardRows : Int
-boardRows =
     22
 
 
@@ -138,9 +128,6 @@ specDims spec =
     )
 
 
-{-| Rotate a cell (c, r) k quarter-turns clockwise within an H x W grid.
-Returns the cell's new (col, row) in the rotated grid.
--}
 rotateCell : Int -> ( Int, Int ) -> ( Int, Int ) -> ( Int, Int )
 rotateCell k ( h, w ) ( c, r ) =
     case modBy 4 k of
@@ -202,18 +189,35 @@ type alias Model =
     , selectedPlaced : Maybe Int
     , rotation : Int
     , drag : Maybe Drag
+    , windowW : Int
+    , windowH : Int
     }
 
 
-init : Model
-init =
-    { placed = []
-    , nextId = 0
-    , selectedKind = Nothing
-    , selectedPlaced = Nothing
-    , rotation = 0
-    , drag = Nothing
-    }
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( { placed = []
+      , nextId = 0
+      , selectedKind = Nothing
+      , selectedPlaced = Nothing
+      , rotation = 0
+      , drag = Nothing
+      , windowW = 1200
+      , windowH = 800
+      }
+    , Task.perform
+        (\v -> Resize (round v.viewport.width) (round v.viewport.height))
+        Browser.Dom.getViewport
+    )
+
+
+{-| Grid cols × rows that fit in the viewport, with sidebar taking 1/5.
+-}
+boardDims : Model -> ( Int, Int )
+boardDims model =
+    ( max 10 ((model.windowW * 4 // 5) // u)
+    , max 10 (model.windowH // u)
+    )
 
 
 
@@ -229,6 +233,7 @@ type Msg
     | RotateMsg
     | DeleteMsg
     | ClearMsg
+    | Resize Int Int
 
 
 
@@ -344,6 +349,9 @@ update msg model =
 
         ClearMsg ->
             { model | placed = [], selectedPlaced = Nothing }
+
+        Resize w h ->
+            { model | windowW = w, windowH = h }
     , Cmd.none
     )
 
@@ -355,7 +363,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div [ HA.class "app" ]
-        [ viewBoard model
+        [ div [ HA.class "board-wrap" ] [ viewBoard model ]
         , viewSidebar model
         ]
 
@@ -363,11 +371,14 @@ view model =
 viewBoard : Model -> Html Msg
 viewBoard model =
     let
+        ( cols, rows ) =
+            boardDims model
+
         w =
-            boardCols * u
+            cols * u
 
         h =
-            boardRows * u
+            rows * u
     in
     svg
         [ SA.viewBox ("0 0 " ++ String.fromInt w ++ " " ++ String.fromInt h)
@@ -375,34 +386,34 @@ viewBoard model =
         , SA.height (String.fromInt h)
         , SA.class "board"
         ]
-        (background
-            :: gridLines
+        (background cols rows
+            :: gridLines cols rows
             ++ List.concatMap (drawPlacedTileOnBoard model) model.placed
         )
 
 
-background : Svg Msg
-background =
+background : Int -> Int -> Svg Msg
+background cols rows =
     rect
         [ SA.x "0"
         , SA.y "0"
-        , SA.width (String.fromInt (boardCols * u))
-        , SA.height (String.fromInt (boardRows * u))
+        , SA.width (String.fromInt (cols * u))
+        , SA.height (String.fromInt (rows * u))
         , SA.fill "#ffffff"
         , SE.on "mousedown" (mouseDecoder BoardMouseDown)
         ]
         []
 
 
-gridLines : List (Svg Msg)
-gridLines =
+gridLines : Int -> Int -> List (Svg Msg)
+gridLines cols rows =
     let
         vLine c =
             line
                 [ SA.x1 (String.fromInt (c * u))
                 , SA.y1 "0"
                 , SA.x2 (String.fromInt (c * u))
-                , SA.y2 (String.fromInt (boardRows * u))
+                , SA.y2 (String.fromInt (rows * u))
                 , SA.stroke "#e8e8e8"
                 , SA.strokeWidth "1"
                 , SA.pointerEvents "none"
@@ -413,7 +424,7 @@ gridLines =
             line
                 [ SA.x1 "0"
                 , SA.y1 (String.fromInt (r * u))
-                , SA.x2 (String.fromInt (boardCols * u))
+                , SA.x2 (String.fromInt (cols * u))
                 , SA.y2 (String.fromInt (r * u))
                 , SA.stroke "#e8e8e8"
                 , SA.strokeWidth "1"
@@ -421,8 +432,8 @@ gridLines =
                 ]
                 []
     in
-    (List.range 0 boardCols |> List.map vLine)
-        ++ (List.range 0 boardRows |> List.map hLine)
+    (List.range 0 cols |> List.map vLine)
+        ++ (List.range 0 rows |> List.map hLine)
 
 
 drawPlacedTileOnBoard : Model -> PlacedTile -> List (Svg Msg)
@@ -565,14 +576,12 @@ viewSidebar model =
             , button [ HE.onClick DeleteMsg ] [ text "Delete" ]
             , button [ HE.onClick ClearMsg ] [ text "Clear" ]
             ]
-        , p [ HA.class "help" ]
-            [ text "Pick a tile on the right, then click on the board to place a copy. Click a placed tile to select it (orange outline); drag it to move; Rotate turns by 90°; Delete removes it." ]
         , p [ HA.class "status" ]
             [ text
-                ("Next placement rotation: "
-                    ++ String.fromInt (model.rotation * 90)
-                    ++ "°  ·  Placed: "
+                (String.fromInt (model.rotation * 90)
+                    ++ "°  ·  "
                     ++ String.fromInt (List.length model.placed)
+                    ++ " tiles"
                 )
             ]
         ]
@@ -588,7 +597,7 @@ paletteEntry model spec =
             specDims spec
 
         pu =
-            14
+            16
     in
     div
         [ HA.class
@@ -604,7 +613,7 @@ paletteEntry model spec =
             [ SA.width (String.fromInt (w * pu))
             , SA.height (String.fromInt (h * pu))
             , SA.viewBox ("0 0 " ++ String.fromInt (w * u) ++ " " ++ String.fromInt (h * u))
-            , SA.style "pointer-events: none;"
+            , SA.style "pointer-events: none; display: block;"
             ]
             (drawTile False
                 False
@@ -620,25 +629,28 @@ paletteEntry model spec =
 
 subs : Model -> Sub Msg
 subs model =
-    case model.drag of
-        Just _ ->
-            Sub.batch
-                [ Browser.Events.onMouseUp (D.succeed MouseUp)
-                , Browser.Events.onMouseMove
-                    (D.map2 DragMouseMove
-                        (D.field "clientX" D.float)
-                        (D.field "clientY" D.float)
-                    )
-                ]
+    Sub.batch
+        [ Browser.Events.onResize Resize
+        , case model.drag of
+            Just _ ->
+                Sub.batch
+                    [ Browser.Events.onMouseUp (D.succeed MouseUp)
+                    , Browser.Events.onMouseMove
+                        (D.map2 DragMouseMove
+                            (D.field "clientX" D.float)
+                            (D.field "clientY" D.float)
+                        )
+                    ]
 
-        Nothing ->
-            Sub.none
+            Nothing ->
+                Sub.none
+        ]
 
 
 main : Program () Model Msg
 main =
     Browser.element
-        { init = \_ -> ( init, Cmd.none )
+        { init = init
         , update = update
         , view = view
         , subscriptions = subs
