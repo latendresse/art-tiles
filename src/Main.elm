@@ -856,10 +856,25 @@ drawTile u_ onBoard isSelected p spec =
             let
                 ( lx, ly ) =
                     placedLetterPos p spec
+
+                lxPx =
+                    lx * toFloat u_
+
+                lyPx =
+                    ly * toFloat u_
+
+                rotTransform =
+                    "rotate("
+                        ++ String.fromInt (p.rotation * 90)
+                        ++ " "
+                        ++ String.fromFloat lxPx
+                        ++ " "
+                        ++ String.fromFloat lyPx
+                        ++ ")"
             in
             text_
-                [ SA.x (String.fromFloat (lx * toFloat u_))
-                , SA.y (String.fromFloat (ly * toFloat u_))
+                [ SA.x (String.fromFloat lxPx)
+                , SA.y (String.fromFloat lyPx)
                 , SA.textAnchor "middle"
                 , SA.dominantBaseline "central"
                 , SA.fontSize (String.fromFloat (toFloat u_ * 1.0))
@@ -868,6 +883,7 @@ drawTile u_ onBoard isSelected p spec =
                 , SA.fontWeight "bold"
                 , SA.fill spec.color
                 , SA.pointerEvents "none"
+                , SA.transform rotTransform
                 ]
                 [ Svg.text spec.name ]
     in

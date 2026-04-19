@@ -6384,6 +6384,7 @@ var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$svg$Svg$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$svg$Svg$Attributes$textAnchor = _VirtualDom_attribute('text-anchor');
 var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
+var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
 var $author$project$Main$drawTile = F5(
 	function (u_, onBoard, isSelected, p, spec) {
 		var tileHandler = A2(
@@ -6416,14 +6417,17 @@ var $author$project$Main$drawTile = F5(
 			var _v4 = A2($author$project$Main$placedLetterPos, p, spec);
 			var lx = _v4.a;
 			var ly = _v4.b;
+			var lxPx = lx * u_;
+			var lyPx = ly * u_;
+			var rotTransform = 'rotate(' + ($elm$core$String$fromInt(p.rotation * 90) + (' ' + ($elm$core$String$fromFloat(lxPx) + (' ' + ($elm$core$String$fromFloat(lyPx) + ')')))));
 			return A2(
 				$elm$svg$Svg$text_,
 				_List_fromArray(
 					[
 						$elm$svg$Svg$Attributes$x(
-						$elm$core$String$fromFloat(lx * u_)),
+						$elm$core$String$fromFloat(lxPx)),
 						$elm$svg$Svg$Attributes$y(
-						$elm$core$String$fromFloat(ly * u_)),
+						$elm$core$String$fromFloat(lyPx)),
 						$elm$svg$Svg$Attributes$textAnchor('middle'),
 						$elm$svg$Svg$Attributes$dominantBaseline('central'),
 						$elm$svg$Svg$Attributes$fontSize(
@@ -6432,7 +6436,8 @@ var $author$project$Main$drawTile = F5(
 						$elm$svg$Svg$Attributes$fontStyle('italic'),
 						$elm$svg$Svg$Attributes$fontWeight('bold'),
 						$elm$svg$Svg$Attributes$fill(spec.color),
-						$elm$svg$Svg$Attributes$pointerEvents('none')
+						$elm$svg$Svg$Attributes$pointerEvents('none'),
+						$elm$svg$Svg$Attributes$transform(rotTransform)
 					]),
 				_List_fromArray(
 					[
@@ -6674,7 +6679,6 @@ var $elm$core$Basics$negate = function (n) {
 	return -n;
 };
 var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
-var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
 var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
 var $author$project$Main$viewBoard = function (model) {
 	var ty = (-model.panY) * model.u;
