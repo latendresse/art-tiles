@@ -6256,12 +6256,13 @@ var $author$project$Main$tileA = {
 	bandPath: _List_fromArray(
 		[
 			_Utils_Tuple2(0, 3),
-			_Utils_Tuple2(8, 3)
+			_Utils_Tuple2(2, 3),
+			_Utils_Tuple2(2, 8)
 		]),
 	color: '#a4bcd9',
 	grid: _List_fromArray(
 		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
-	letterPos: _Utils_Tuple2(4, 3),
+	letterPos: _Utils_Tuple2(2, 3),
 	name: 'A'
 };
 var $author$project$Main$tileR = {
