@@ -6428,6 +6428,54 @@ var $elm$core$List$isEmpty = function (xs) {
 };
 var $author$project$Main$maxU = 60;
 var $author$project$Main$minU = 8;
+var $author$project$Main$msgLabel = function (msg) {
+	switch (msg.$) {
+		case 'SelectKind':
+			return 'SelectKind';
+		case 'BoardMouseDown':
+			return 'BoardMouseDown';
+		case 'TileMouseDown':
+			return 'TileMouseDown';
+		case 'DragMouseMove':
+			return 'DragMouseMove';
+		case 'MouseUp':
+			return 'MouseUp';
+		case 'RotateMsg':
+			return 'RotateMsg';
+		case 'DeleteMsg':
+			return 'DeleteMsg';
+		case 'ClearMsg':
+			return 'ClearMsg';
+		case 'Resize':
+			return 'Resize';
+		case 'ZoomIn':
+			return 'ZoomIn';
+		case 'ZoomOut':
+			return 'ZoomOut';
+		case 'ResetView':
+			return 'ResetView';
+		case 'SaveMsg':
+			return 'SaveMsg';
+		case 'SaveAtTime':
+			return 'SaveAtTime';
+		case 'LoadMsg':
+			return 'LoadMsg';
+		case 'LoadFileSelected':
+			return 'LoadFileSelected';
+		case 'LoadFileLoaded':
+			return 'LoadFileLoaded';
+		case 'CaptureRule':
+			var k = msg.a;
+			return 'CaptureRule ' + k;
+		case 'ShowRule':
+			var k = msg.a;
+			return 'ShowRule ' + k;
+		case 'ApplyAll':
+			return 'ApplyAll';
+		default:
+			return 'ApplySelected';
+	}
+};
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
@@ -6859,6 +6907,10 @@ var $author$project$Main$wouldOverlap = F2(
 var $author$project$Main$zoomStep = 2;
 var $author$project$Main$baseUpdate = F2(
 	function (msg, model) {
+		var _v0 = A2(
+			$elm$core$Debug$log,
+			'[MSG]',
+			$author$project$Main$msgLabel(msg));
 		return _Utils_Tuple2(
 			function () {
 				switch (msg.$) {
@@ -6875,9 +6927,9 @@ var $author$project$Main$baseUpdate = F2(
 						var offY = msg.b;
 						var clX = msg.c;
 						var clY = msg.d;
-						var _v1 = model.selectedKind;
-						if (_v1.$ === 'Just') {
-							var n = _v1.a;
+						var _v2 = model.selectedKind;
+						if (_v2.$ === 'Just') {
+							var n = _v2.a;
 							var worldRow = $elm$core$Basics$floor((offY / model.u) + model.panY);
 							var worldCol = $elm$core$Basics$floor((offX / model.u) + model.panX);
 							var occupied = A2($author$project$Main$allOccupiedCells, $elm$core$Maybe$Nothing, model.placed);
@@ -6906,15 +6958,15 @@ var $author$project$Main$baseUpdate = F2(
 						var id = msg.a;
 						var cx = msg.b;
 						var cy = msg.c;
-						var _v2 = $elm$core$List$head(
+						var _v3 = $elm$core$List$head(
 							A2(
 								$elm$core$List$filter,
 								function (p) {
 									return _Utils_eq(p.id, id);
 								},
 								model.placed));
-						if (_v2.$ === 'Just') {
-							var p = _v2.a;
+						if (_v3.$ === 'Just') {
+							var p = _v3.a;
 							return _Utils_update(
 								model,
 								{
@@ -6930,23 +6982,23 @@ var $author$project$Main$baseUpdate = F2(
 					case 'DragMouseMove':
 						var cx = msg.a;
 						var cy = msg.b;
-						var _v3 = model.drag;
-						if (_v3.$ === 'Just') {
-							if (_v3.a.$ === 'DraggingTile') {
-								var state = _v3.a.a;
+						var _v4 = model.drag;
+						if (_v4.$ === 'Just') {
+							if (_v4.a.$ === 'DraggingTile') {
+								var state = _v4.a.a;
 								var dRow = $elm$core$Basics$round((cy - state.startY) / model.u);
 								var newRow = state.origRow + dRow;
 								var dCol = $elm$core$Basics$round((cx - state.startX) / model.u);
 								var newCol = state.origCol + dCol;
-								var _v4 = $elm$core$List$head(
+								var _v5 = $elm$core$List$head(
 									A2(
 										$elm$core$List$filter,
 										function (p) {
 											return _Utils_eq(p.id, state.id);
 										},
 										model.placed));
-								if (_v4.$ === 'Just') {
-									var p = _v4.a;
+								if (_v5.$ === 'Just') {
+									var p = _v5.a;
 									var proposed = _Utils_update(
 										p,
 										{col: newCol, row: newRow});
@@ -6968,7 +7020,7 @@ var $author$project$Main$baseUpdate = F2(
 									return model;
 								}
 							} else {
-								var state = _v3.a.a;
+								var state = _v4.a.a;
 								var dy = (cy - state.startY) / model.u;
 								var dx = (cx - state.startX) / model.u;
 								return _Utils_update(
@@ -6983,9 +7035,9 @@ var $author$project$Main$baseUpdate = F2(
 							model,
 							{drag: $elm$core$Maybe$Nothing});
 					case 'RotateMsg':
-						var _v5 = model.selectedPlaced;
-						if (_v5.$ === 'Just') {
-							var id = _v5.a;
+						var _v6 = model.selectedPlaced;
+						if (_v6.$ === 'Just') {
+							var id = _v6.a;
 							return _Utils_update(
 								model,
 								{
@@ -7017,9 +7069,9 @@ var $author$project$Main$baseUpdate = F2(
 								});
 						}
 					case 'DeleteMsg':
-						var _v6 = model.selectedPlaced;
-						if (_v6.$ === 'Just') {
-							var id = _v6.a;
+						var _v7 = model.selectedPlaced;
+						if (_v7.$ === 'Just') {
+							var id = _v7.a;
 							return _Utils_update(
 								model,
 								{
@@ -7070,9 +7122,9 @@ var $author$project$Main$baseUpdate = F2(
 						return model;
 					case 'LoadFileLoaded':
 						var content = msg.a;
-						var _v7 = A2($elm$json$Json$Decode$decodeString, $author$project$Main$decodeTiling, content);
-						if (_v7.$ === 'Ok') {
-							var saved = _v7.a;
+						var _v8 = A2($elm$json$Json$Decode$decodeString, $author$project$Main$decodeTiling, content);
+						if (_v8.$ === 'Ok') {
+							var saved = _v8.a;
 							var startId = model.nextId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
@@ -7099,7 +7151,7 @@ var $author$project$Main$baseUpdate = F2(
 						}
 					case 'CaptureRule':
 						var kind = msg.a;
-						var _v8 = A2(
+						var _v9 = A2(
 							$elm$core$Debug$log,
 							'CaptureRule ' + (kind + ' — current rules keys BEFORE insert:'),
 							$elm$core$Dict$keys(model.rules));
@@ -7108,7 +7160,7 @@ var $author$project$Main$baseUpdate = F2(
 						} else {
 							var rule = $author$project$Main$captureRuleFromPlaced(model.placed);
 							var newRules = A3($elm$core$Dict$insert, kind, rule, model.rules);
-							var _v9 = A2(
+							var _v10 = A2(
 								$elm$core$Debug$log,
 								'CaptureRule ' + (kind + (' stored ' + ($elm$core$String$fromInt(
 									$elm$core$List$length(rule.children)) + ' children. Keys AFTER insert:'))),
@@ -7119,13 +7171,13 @@ var $author$project$Main$baseUpdate = F2(
 						}
 					case 'ShowRule':
 						var kind = msg.a;
-						var _v10 = A2(
+						var _v11 = A2(
 							$elm$core$Debug$log,
 							'ShowRule ' + (kind + '. Available keys:'),
 							$elm$core$Dict$keys(model.rules));
-						var _v11 = A2($elm$core$Dict$get, kind, model.rules);
-						if (_v11.$ === 'Just') {
-							var rule = _v11.a;
+						var _v12 = A2($elm$core$Dict$get, kind, model.rules);
+						if (_v12.$ === 'Just') {
+							var rule = _v12.a;
 							var startId = model.nextId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
@@ -7134,7 +7186,7 @@ var $author$project$Main$baseUpdate = F2(
 										return {col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
 									}),
 								rule.children);
-							var _v12 = A2(
+							var _v13 = A2(
 								$elm$core$Debug$log,
 								'Rule ' + (kind + ' has children count:'),
 								$elm$core$List$length(rule.children));
@@ -7157,27 +7209,27 @@ var $author$project$Main$baseUpdate = F2(
 							$elm$core$List$concatMap,
 							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var _v13 = $author$project$Main$renumber(newTiles);
-						var withIds = _v13.a;
-						var count = _v13.b;
+						var _v14 = $author$project$Main$renumber(newTiles);
+						var withIds = _v14.a;
+						var count = _v14.b;
 						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 					default:
-						var _v14 = model.selectedPlaced;
-						if (_v14.$ === 'Nothing') {
+						var _v15 = model.selectedPlaced;
+						if (_v15.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v14.a;
-							var _v15 = $elm$core$List$head(
+							var sid = _v15.a;
+							var _v16 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v15.$ === 'Just') {
-								var tile = _v15.a;
+							if (_v16.$ === 'Just') {
+								var tile = _v16.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7185,10 +7237,10 @@ var $author$project$Main$baseUpdate = F2(
 									},
 									model.placed);
 								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v16 = $author$project$Main$renumber(
+								var _v17 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v16.a;
-								var count = _v16.b;
+								var withIds = _v17.a;
+								var count = _v17.b;
 								return _Utils_update(
 									model,
 									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});

@@ -762,8 +762,37 @@ update msg model =
     ( newModel, Cmd.batch [ baseCmd, persistCmd ] )
 
 
+msgLabel : Msg -> String
+msgLabel msg =
+    case msg of
+        SelectKind _ -> "SelectKind"
+        BoardMouseDown _ _ _ _ -> "BoardMouseDown"
+        TileMouseDown _ _ _ -> "TileMouseDown"
+        DragMouseMove _ _ -> "DragMouseMove"
+        MouseUp -> "MouseUp"
+        RotateMsg -> "RotateMsg"
+        DeleteMsg -> "DeleteMsg"
+        ClearMsg -> "ClearMsg"
+        Resize _ _ -> "Resize"
+        ZoomIn -> "ZoomIn"
+        ZoomOut -> "ZoomOut"
+        ResetView -> "ResetView"
+        SaveMsg -> "SaveMsg"
+        SaveAtTime _ _ -> "SaveAtTime"
+        LoadMsg -> "LoadMsg"
+        LoadFileSelected _ -> "LoadFileSelected"
+        LoadFileLoaded _ -> "LoadFileLoaded"
+        CaptureRule k -> "CaptureRule " ++ k
+        ShowRule k -> "ShowRule " ++ k
+        ApplyAll -> "ApplyAll"
+        ApplySelected -> "ApplySelected"
+
+
 baseUpdate : Msg -> Model -> ( Model, Cmd Msg )
 baseUpdate msg model =
+    let
+        _ = Debug.log "[MSG]" (msgLabel msg)
+    in
     ( case msg of
         SelectKind n ->
             { model
