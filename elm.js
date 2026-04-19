@@ -6267,14 +6267,14 @@ var $author$project$Main$tileA = {
 var $author$project$Main$tileR = {
 	bandPath: _List_fromArray(
 		[
-			_Utils_Tuple2(4, 0),
-			_Utils_Tuple2(4, 5),
-			_Utils_Tuple2(8, 5)
+			_Utils_Tuple2(3, 0),
+			_Utils_Tuple2(3, 4),
+			_Utils_Tuple2(8, 4)
 		]),
 	color: '#f58686',
 	grid: _List_fromArray(
 		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
-	letterPos: _Utils_Tuple2(6, 5),
+	letterPos: _Utils_Tuple2(5, 4),
 	name: 'R'
 };
 var $author$project$Main$tileT = {
