@@ -7142,7 +7142,13 @@ var $author$project$Main$baseUpdate = F2(
 						var count = _v9.b;
 						return _Utils_update(
 							model,
-							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
+							{
+								nextId: count,
+								placed: withIds,
+								selectedKind: $elm$core$Maybe$Nothing,
+								selectedPlaced: $elm$core$Maybe$Nothing,
+								u: A2($elm$core$Basics$max, 1, (model.u / model.factor) | 0)
+							});
 					default:
 						var _v10 = model.selectedPlaced;
 						if (_v10.$ === 'Nothing') {

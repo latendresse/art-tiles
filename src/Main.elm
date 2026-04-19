@@ -1053,6 +1053,12 @@ baseUpdate msg model =
                 , nextId = count
                 , selectedPlaced = Nothing
                 , selectedKind = Nothing
+
+                -- Inflation multiplies every position by `factor`, so the
+                -- tiling physically grows. Divide the zoom by the same amount
+                -- so the on-screen extent stays the same; you just see more
+                -- (smaller) tiles.
+                , u = max 1 (model.u // model.factor)
             }
 
         ApplySelected ->
