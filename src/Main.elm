@@ -668,8 +668,14 @@ decodePersistedState raw =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        _ =
+            Debug.log "init: raw flags string from localStorage:" flags
+
         ( rules, factor ) =
             decodePersistedState flags
+
+        _ =
+            Debug.log "init: decoded rules keys:" (Dict.keys rules)
     in
     ( { placed = []
       , nextId = 0
@@ -738,7 +744,17 @@ update msg model =
 
         persistCmd =
             if newModel.rules /= model.rules || newModel.factor /= model.factor then
-                persistState (encodePersistedState newModel.rules newModel.factor)
+                let
+                    payload =
+                        encodePersistedState newModel.rules newModel.factor
+
+                    _ =
+                        Debug.log "Persisting to localStorage keys:" (Dict.keys newModel.rules)
+
+                    _ =
+                        Debug.log "Persisting JSON:" payload
+                in
+                persistState payload
 
             else
                 Cmd.none
@@ -983,6 +999,12 @@ baseUpdate msg model =
                     model
 
         CaptureRule kind ->
+            let
+                _ =
+                    Debug.log
+                        ("CaptureRule " ++ kind ++ " — current rules keys BEFORE insert:")
+                        (Dict.keys model.rules)
+            in
             if List.isEmpty model.placed then
                 Debug.log ("CaptureRule " ++ kind ++ " ignored: empty board") model
 
@@ -996,7 +1018,7 @@ baseUpdate msg model =
 
                     _ =
                         Debug.log
-                            ("CaptureRule " ++ kind ++ " stored " ++ String.fromInt (List.length rule.children) ++ " children. Keys now:")
+                            ("CaptureRule " ++ kind ++ " stored " ++ String.fromInt (List.length rule.children) ++ " children. Keys AFTER insert:")
                             (Dict.keys newRules)
                 in
                 { model | rules = newRules }

@@ -5613,11 +5613,17 @@ var $author$project$Main$decodePersistedState = function (raw) {
 };
 var $author$project$Main$defaultU = 22;
 var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
+var $elm$core$Debug$log = _Debug_log;
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$init = function (flags) {
 	var _v0 = $author$project$Main$decodePersistedState(flags);
 	var rules = _v0.a;
 	var factor = _v0.b;
+	var _v1 = A2($elm$core$Debug$log, 'init: raw flags string from localStorage:', flags);
+	var _v2 = A2(
+		$elm$core$Debug$log,
+		'init: decoded rules keys:',
+		$elm$core$Dict$keys(rules));
 	return _Utils_Tuple2(
 		{drag: $elm$core$Maybe$Nothing, factor: factor, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
 		A2(
@@ -6420,7 +6426,6 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
-var $elm$core$Debug$log = _Debug_log;
 var $author$project$Main$maxU = 60;
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
@@ -7094,15 +7099,19 @@ var $author$project$Main$baseUpdate = F2(
 						}
 					case 'CaptureRule':
 						var kind = msg.a;
+						var _v8 = A2(
+							$elm$core$Debug$log,
+							'CaptureRule ' + (kind + ' — current rules keys BEFORE insert:'),
+							$elm$core$Dict$keys(model.rules));
 						if ($elm$core$List$isEmpty(model.placed)) {
 							return A2($elm$core$Debug$log, 'CaptureRule ' + (kind + ' ignored: empty board'), model);
 						} else {
 							var rule = $author$project$Main$captureRuleFromPlaced(model.placed);
 							var newRules = A3($elm$core$Dict$insert, kind, rule, model.rules);
-							var _v8 = A2(
+							var _v9 = A2(
 								$elm$core$Debug$log,
 								'CaptureRule ' + (kind + (' stored ' + ($elm$core$String$fromInt(
-									$elm$core$List$length(rule.children)) + ' children. Keys now:'))),
+									$elm$core$List$length(rule.children)) + ' children. Keys AFTER insert:'))),
 								$elm$core$Dict$keys(newRules));
 							return _Utils_update(
 								model,
@@ -7110,13 +7119,13 @@ var $author$project$Main$baseUpdate = F2(
 						}
 					case 'ShowRule':
 						var kind = msg.a;
-						var _v9 = A2(
+						var _v10 = A2(
 							$elm$core$Debug$log,
 							'ShowRule ' + (kind + '. Available keys:'),
 							$elm$core$Dict$keys(model.rules));
-						var _v10 = A2($elm$core$Dict$get, kind, model.rules);
-						if (_v10.$ === 'Just') {
-							var rule = _v10.a;
+						var _v11 = A2($elm$core$Dict$get, kind, model.rules);
+						if (_v11.$ === 'Just') {
+							var rule = _v11.a;
 							var startId = model.nextId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
@@ -7125,7 +7134,7 @@ var $author$project$Main$baseUpdate = F2(
 										return {col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
 									}),
 								rule.children);
-							var _v11 = A2(
+							var _v12 = A2(
 								$elm$core$Debug$log,
 								'Rule ' + (kind + ' has children count:'),
 								$elm$core$List$length(rule.children));
@@ -7148,27 +7157,27 @@ var $author$project$Main$baseUpdate = F2(
 							$elm$core$List$concatMap,
 							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var _v12 = $author$project$Main$renumber(newTiles);
-						var withIds = _v12.a;
-						var count = _v12.b;
+						var _v13 = $author$project$Main$renumber(newTiles);
+						var withIds = _v13.a;
+						var count = _v13.b;
 						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 					default:
-						var _v13 = model.selectedPlaced;
-						if (_v13.$ === 'Nothing') {
+						var _v14 = model.selectedPlaced;
+						if (_v14.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v13.a;
-							var _v14 = $elm$core$List$head(
+							var sid = _v14.a;
+							var _v15 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v14.$ === 'Just') {
-								var tile = _v14.a;
+							if (_v15.$ === 'Just') {
+								var tile = _v15.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7176,10 +7185,10 @@ var $author$project$Main$baseUpdate = F2(
 									},
 									model.placed);
 								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v15 = $author$project$Main$renumber(
+								var _v16 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v15.a;
-								var count = _v15.b;
+								var withIds = _v16.a;
+								var count = _v16.b;
 								return _Utils_update(
 									model,
 									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
@@ -7239,8 +7248,19 @@ var $author$project$Main$update = F2(
 		var _v0 = A2($author$project$Main$baseUpdate, msg, model);
 		var newModel = _v0.a;
 		var baseCmd = _v0.b;
-		var persistCmd = ((!_Utils_eq(newModel.rules, model.rules)) || (!_Utils_eq(newModel.factor, model.factor))) ? $author$project$Main$persistState(
-			A2($author$project$Main$encodePersistedState, newModel.rules, newModel.factor)) : $elm$core$Platform$Cmd$none;
+		var persistCmd = function () {
+			if ((!_Utils_eq(newModel.rules, model.rules)) || (!_Utils_eq(newModel.factor, model.factor))) {
+				var payload = A2($author$project$Main$encodePersistedState, newModel.rules, newModel.factor);
+				var _v1 = A2(
+					$elm$core$Debug$log,
+					'Persisting to localStorage keys:',
+					$elm$core$Dict$keys(newModel.rules));
+				var _v2 = A2($elm$core$Debug$log, 'Persisting JSON:', payload);
+				return $author$project$Main$persistState(payload);
+			} else {
+				return $elm$core$Platform$Cmd$none;
+			}
+		}();
 		return _Utils_Tuple2(
 			newModel,
 			$elm$core$Platform$Cmd$batch(
