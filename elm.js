@@ -6107,20 +6107,26 @@ var $author$project$Main$specCellsRotated = F2(
 			$author$project$Main$parseGrid(spec.grid));
 	});
 var $author$project$Main$tileCells = function (p) {
-	var _v0 = $author$project$Main$lookupSpec(p.kind);
-	if (_v0.$ === 'Just') {
-		var spec = _v0.a;
-		return $elm$core$Set$fromList(
-			A2(
-				$elm$core$List$map,
-				function (_v1) {
-					var c = _v1.a;
-					var r = _v1.b;
-					return _Utils_Tuple2(c + p.col, r + p.row);
-				},
-				A2($author$project$Main$specCellsRotated, p.rotation, spec)));
-	} else {
+	if (p.scale !== 1.0) {
 		return $elm$core$Set$empty;
+	} else {
+		var _v0 = $author$project$Main$lookupSpec(p.kind);
+		if (_v0.$ === 'Just') {
+			var spec = _v0.a;
+			return $elm$core$Set$fromList(
+				A2(
+					$elm$core$List$map,
+					function (_v1) {
+						var c = _v1.a;
+						var r = _v1.b;
+						return _Utils_Tuple2(
+							c + $elm$core$Basics$round(p.col),
+							r + $elm$core$Basics$round(p.row));
+					},
+					A2($author$project$Main$specCellsRotated, p.rotation, spec)));
+		} else {
+			return $elm$core$Set$empty;
+		}
 	}
 };
 var $elm$core$Set$union = F2(
@@ -6193,7 +6199,12 @@ var $author$project$Main$captureRuleFromPlaced = function (placed) {
 		children: A2(
 			$elm$core$List$map,
 			function (t) {
-				return {col: t.col - minC, kind: t.kind, rotation: t.rotation, row: t.row - minR};
+				return {
+					col: $elm$core$Basics$round(t.col - minC),
+					kind: t.kind,
+					rotation: t.rotation,
+					row: $elm$core$Basics$round(t.row - minR)
+				};
 			},
 			placed)
 	};
@@ -6204,24 +6215,81 @@ var $elm$core$List$concatMap = F2(
 			A2($elm$core$List$map, f, list));
 	});
 var $elm$json$Json$Decode$decodeString = _Json_runOnString;
-var $author$project$Main$SavedTile = F4(
+var $author$project$Main$SavedTiling = F3(
+	function (tiles, rules, factor) {
+		return {factor: factor, rules: rules, tiles: tiles};
+	});
+var $author$project$Main$SubRule = function (children) {
+	return {children: children};
+};
+var $author$project$Main$ChildTile = F4(
 	function (kind, col, row, rotation) {
 		return {col: col, kind: kind, rotation: rotation, row: row};
 	});
 var $elm$json$Json$Decode$map4 = _Json_map4;
 var $elm$json$Json$Decode$string = _Json_decodeString;
-var $author$project$Main$decodeSavedTile = A5(
+var $author$project$Main$decodeChildTile = A5(
 	$elm$json$Json$Decode$map4,
-	$author$project$Main$SavedTile,
+	$author$project$Main$ChildTile,
 	A2($elm$json$Json$Decode$field, 'kind', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'col', $elm$json$Json$Decode$int),
 	A2($elm$json$Json$Decode$field, 'row', $elm$json$Json$Decode$int),
 	A2($elm$json$Json$Decode$field, 'rotation', $elm$json$Json$Decode$int));
 var $elm$json$Json$Decode$list = _Json_decodeList;
-var $author$project$Main$decodeTiling = A2(
-	$elm$json$Json$Decode$field,
-	'tiles',
-	$elm$json$Json$Decode$list($author$project$Main$decodeSavedTile));
+var $author$project$Main$decodeSubRule = A2(
+	$elm$json$Json$Decode$map,
+	$author$project$Main$SubRule,
+	A2(
+		$elm$json$Json$Decode$field,
+		'children',
+		$elm$json$Json$Decode$list($author$project$Main$decodeChildTile)));
+var $elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
+var $elm$json$Json$Decode$dict = function (decoder) {
+	return A2(
+		$elm$json$Json$Decode$map,
+		$elm$core$Dict$fromList,
+		$elm$json$Json$Decode$keyValuePairs(decoder));
+};
+var $author$project$Main$decodeRules = $elm$json$Json$Decode$dict($author$project$Main$decodeSubRule);
+var $author$project$Main$SavedTile = F5(
+	function (kind, col, row, rotation, scale) {
+		return {col: col, kind: kind, rotation: rotation, row: row, scale: scale};
+	});
+var $elm$json$Json$Decode$map5 = _Json_map5;
+var $elm$json$Json$Decode$oneOf = _Json_oneOf;
+var $author$project$Main$decodeSavedTile = A6(
+	$elm$json$Json$Decode$map5,
+	$author$project$Main$SavedTile,
+	A2($elm$json$Json$Decode$field, 'kind', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'col', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'row', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'rotation', $elm$json$Json$Decode$int),
+	$elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A2($elm$json$Json$Decode$field, 'scale', $elm$json$Json$Decode$float),
+				$elm$json$Json$Decode$succeed(1.0)
+			])));
+var $elm$json$Json$Decode$map3 = _Json_map3;
+var $author$project$Main$decodeTiling = A4(
+	$elm$json$Json$Decode$map3,
+	$author$project$Main$SavedTiling,
+	A2(
+		$elm$json$Json$Decode$field,
+		'tiles',
+		$elm$json$Json$Decode$list($author$project$Main$decodeSavedTile)),
+	$elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A2($elm$json$Json$Decode$field, 'rules', $author$project$Main$decodeRules),
+				$elm$json$Json$Decode$succeed($elm$core$Dict$empty)
+			])),
+	$elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A2($elm$json$Json$Decode$field, 'factor', $elm$json$Json$Decode$int),
+				$elm$json$Json$Decode$succeed(2)
+			])));
 var $elm$core$Dict$get = F2(
 	function (targetKey, dict) {
 		get:
@@ -6253,15 +6321,33 @@ var $elm$core$Dict$get = F2(
 			}
 		}
 	});
+var $author$project$Main$deflateTile = F3(
+	function (rules, factor, t) {
+		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
+		if (_v0.$ === 'Just') {
+			var rule = _v0.a;
+			var childScale = t.scale / factor;
+			return A2(
+				$elm$core$List$map,
+				function (c) {
+					return {col: t.col + (c.col * childScale), id: 0, kind: c.kind, rotation: c.rotation, row: t.row + (c.row * childScale), scale: childScale};
+				},
+				rule.children);
+		} else {
+			return _List_fromArray(
+				[t]);
+		}
+	});
 var $author$project$Main$expandTile = F3(
 	function (rules, factor, t) {
+		var kf = factor;
 		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
 			return A2(
 				$elm$core$List$map,
 				function (c) {
-					return {col: (t.col * factor) + c.col, id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * factor) + c.row};
+					return {col: (t.col * kf) + (c.col * t.scale), id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * kf) + (c.row * t.scale), scale: t.scale};
 				},
 				rule.children);
 		} else {
@@ -6269,7 +6355,7 @@ var $author$project$Main$expandTile = F3(
 				[
 					_Utils_update(
 					t,
-					{col: t.col * factor, row: t.row * factor})
+					{col: t.col * kf, row: t.row * kf})
 				]);
 		}
 	});
@@ -6336,22 +6422,22 @@ var $elm$json$Json$Encode$object = function (pairs) {
 			pairs));
 };
 var $elm$json$Json$Encode$string = _Json_wrap;
-var $author$project$Main$encodeTile = function (p) {
+var $author$project$Main$encodeChildTile = function (c) {
 	return $elm$json$Json$Encode$object(
 		_List_fromArray(
 			[
 				_Utils_Tuple2(
 				'kind',
-				$elm$json$Json$Encode$string(p.kind)),
+				$elm$json$Json$Encode$string(c.kind)),
 				_Utils_Tuple2(
 				'col',
-				$elm$json$Json$Encode$int(p.col)),
+				$elm$json$Json$Encode$int(c.col)),
 				_Utils_Tuple2(
 				'row',
-				$elm$json$Json$Encode$int(p.row)),
+				$elm$json$Json$Encode$int(c.row)),
 				_Utils_Tuple2(
 				'rotation',
-				$elm$json$Json$Encode$int(p.rotation))
+				$elm$json$Json$Encode$int(c.rotation))
 			]));
 };
 var $elm$json$Json$Encode$list = F2(
@@ -6363,6 +6449,50 @@ var $elm$json$Json$Encode$list = F2(
 				_Json_emptyArray(_Utils_Tuple0),
 				entries));
 	});
+var $author$project$Main$encodeSubRule = function (rule) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'children',
+				A2($elm$json$Json$Encode$list, $author$project$Main$encodeChildTile, rule.children))
+			]));
+};
+var $author$project$Main$encodeRules = function (rules) {
+	return $elm$json$Json$Encode$object(
+		A2(
+			$elm$core$List$map,
+			function (_v0) {
+				var k = _v0.a;
+				var r = _v0.b;
+				return _Utils_Tuple2(
+					k,
+					$author$project$Main$encodeSubRule(r));
+			},
+			$elm$core$Dict$toList(rules)));
+};
+var $elm$json$Json$Encode$float = _Json_wrap;
+var $author$project$Main$encodeTile = function (p) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'kind',
+				$elm$json$Json$Encode$string(p.kind)),
+				_Utils_Tuple2(
+				'col',
+				$elm$json$Json$Encode$float(p.col)),
+				_Utils_Tuple2(
+				'row',
+				$elm$json$Json$Encode$float(p.row)),
+				_Utils_Tuple2(
+				'rotation',
+				$elm$json$Json$Encode$int(p.rotation)),
+				_Utils_Tuple2(
+				'scale',
+				$elm$json$Json$Encode$float(p.scale))
+			]));
+};
 var $author$project$Main$encodeTiling = function (model) {
 	return A2(
 		$elm$json$Json$Encode$encode,
@@ -6372,10 +6502,16 @@ var $author$project$Main$encodeTiling = function (model) {
 				[
 					_Utils_Tuple2(
 					'version',
-					$elm$json$Json$Encode$int(1)),
+					$elm$json$Json$Encode$int(2)),
 					_Utils_Tuple2(
 					'tiles',
-					A2($elm$json$Json$Encode$list, $author$project$Main$encodeTile, model.placed))
+					A2($elm$json$Json$Encode$list, $author$project$Main$encodeTile, model.placed)),
+					_Utils_Tuple2(
+					'rules',
+					$author$project$Main$encodeRules(model.rules)),
+					_Utils_Tuple2(
+					'factor',
+					$elm$json$Json$Encode$int(model.factor))
 				])));
 };
 var $elm$file$File$Download$string = F3(
@@ -6623,7 +6759,7 @@ var $author$project$Main$saveCmd = F3(
 	});
 var $author$project$Main$savedToPlaced = F2(
 	function (id, s) {
-		return {col: s.col, id: id, kind: s.kind, rotation: s.rotation, row: s.row};
+		return {col: s.col, id: id, kind: s.kind, rotation: s.rotation, row: s.row, scale: s.scale};
 	});
 var $elm$file$File$toString = _File_toString;
 var $elm$core$Dict$filter = F2(
@@ -6708,7 +6844,7 @@ var $author$project$Main$update = F2(
 							var worldRow = $elm$core$Basics$floor((offY / model.u) + model.panY);
 							var worldCol = $elm$core$Basics$floor((offX / model.u) + model.panX);
 							var occupied = A2($author$project$Main$allOccupiedCells, $elm$core$Maybe$Nothing, model.placed);
-							var newTile = {col: worldCol, id: model.nextId, kind: n, rotation: model.rotation, row: worldRow};
+							var newTile = {col: worldCol, id: model.nextId, kind: n, rotation: model.rotation, row: worldRow, scale: 1.0};
 							return A2($author$project$Main$wouldOverlap, occupied, newTile) ? model : _Utils_update(
 								model,
 								{
@@ -6907,15 +7043,17 @@ var $author$project$Main$update = F2(
 									function (i, s) {
 										return A2($author$project$Main$savedToPlaced, startId + i, s);
 									}),
-								saved);
+								saved.tiles);
 							return _Utils_update(
 								model,
 								{
 									drag: $elm$core$Maybe$Nothing,
-									nextId: startId + $elm$core$List$length(saved),
+									factor: saved.factor,
+									nextId: startId + $elm$core$List$length(saved.tiles),
 									panX: 0,
 									panY: 0,
 									placed: newTiles,
+									rules: saved.rules,
 									selectedKind: $elm$core$Maybe$Nothing,
 									selectedPlaced: $elm$core$Maybe$Nothing
 								});
@@ -6959,31 +7097,20 @@ var $author$project$Main$update = F2(
 									model.placed));
 							if (_v10.$ === 'Just') {
 								var tile = _v10.a;
-								var _v11 = A2($elm$core$Dict$get, tile.kind, model.rules);
-								if (_v11.$ === 'Just') {
-									var rule = _v11.a;
-									var others = A2(
-										$elm$core$List$filter,
-										function (t) {
-											return !_Utils_eq(t.id, sid);
-										},
-										model.placed);
-									var children = A2(
-										$elm$core$List$map,
-										function (c) {
-											return {col: tile.col + c.col, id: 0, kind: c.kind, rotation: c.rotation, row: tile.row + c.row};
-										},
-										rule.children);
-									var _v12 = $author$project$Main$renumber(
-										_Utils_ap(others, children));
-									var withIds = _v12.a;
-									var count = _v12.b;
-									return _Utils_update(
-										model,
-										{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
-								} else {
-									return model;
-								}
+								var others = A2(
+									$elm$core$List$filter,
+									function (t) {
+										return !_Utils_eq(t.id, sid);
+									},
+									model.placed);
+								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
+								var _v11 = $author$project$Main$renumber(
+									_Utils_ap(others, children));
+								var withIds = _v11.a;
+								var count = _v11.b;
+								return _Utils_update(
+									model,
+									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 							} else {
 								return model;
 							}
@@ -7123,7 +7250,7 @@ var $author$project$Main$placedBandPath = F2(
 			function (_v0) {
 				var x = _v0.a;
 				var y = _v0.b;
-				return _Utils_Tuple2(x + p.col, y + p.row);
+				return _Utils_Tuple2(p.col + (x * p.scale), p.row + (y * p.scale));
 			},
 			A2(
 				$elm$core$List$map,
@@ -7142,7 +7269,7 @@ var $author$project$Main$placedLetterPos = F2(
 			spec.letterPos);
 		var x = _v0.a;
 		var y = _v0.b;
-		return _Utils_Tuple2(x + p.col, y + p.row);
+		return _Utils_Tuple2(p.col + (x * p.scale), p.row + (y * p.scale));
 	});
 var $author$project$Main$markerPath = function (m) {
 	var cy = m.row + 0.5;
@@ -7172,7 +7299,7 @@ var $author$project$Main$placedMarkerPaths = F2(
 					function (_v0) {
 						var x = _v0.a;
 						var y = _v0.b;
-						return _Utils_Tuple2(x + p.col, y + p.row);
+						return _Utils_Tuple2(p.col + (x * p.scale), p.row + (y * p.scale));
 					},
 					A2(
 						$elm$core$List$map,
@@ -7210,6 +7337,7 @@ var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
 var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
 var $author$project$Main$drawTile = F5(
 	function (u_, onBoard, isSelected, p, spec) {
+		var uf = u_;
 		var tileHandler = A2(
 			$elm$svg$Svg$Events$stopPropagationOn,
 			'mousedown',
@@ -7232,16 +7360,27 @@ var $author$project$Main$drawTile = F5(
 					function (_v5) {
 						var x = _v5.a;
 						var y = _v5.b;
-						return $elm$core$String$fromFloat(x * u_) + (',' + $elm$core$String$fromFloat(y * u_));
+						return $elm$core$String$fromFloat(x * uf) + (',' + $elm$core$String$fromFloat(y * uf));
 					},
 					path));
 		};
+		var localCells = A2($author$project$Main$specCellsRotated, p.rotation, spec);
+		var interaction = onBoard ? _List_fromArray(
+			[
+				$elm$svg$Svg$Attributes$style('cursor:move;'),
+				tileHandler
+			]) : _List_fromArray(
+			[
+				$elm$svg$Svg$Attributes$pointerEvents('none')
+			]);
+		var clipId = 'tile-clip-' + (spec.name + ('-' + $elm$core$String$fromInt(p.id)));
+		var cellSz = p.scale * uf;
 		var letter = function () {
 			var _v4 = A2($author$project$Main$placedLetterPos, p, spec);
 			var lx = _v4.a;
 			var ly = _v4.b;
-			var lxPx = lx * u_;
-			var lyPx = ly * u_;
+			var lxPx = lx * uf;
+			var lyPx = ly * uf;
 			var rotTransform = 'rotate(' + ($elm$core$String$fromInt(p.rotation * 90) + (' ' + ($elm$core$String$fromFloat(lxPx) + (' ' + ($elm$core$String$fromFloat(lyPx) + ')')))));
 			return A2(
 				$elm$svg$Svg$text_,
@@ -7254,7 +7393,7 @@ var $author$project$Main$drawTile = F5(
 						$elm$svg$Svg$Attributes$textAnchor('middle'),
 						$elm$svg$Svg$Attributes$dominantBaseline('central'),
 						$elm$svg$Svg$Attributes$fontSize(
-						$elm$core$String$fromFloat(u_ * 1.0)),
+						$elm$core$String$fromFloat(cellSz * 1.0)),
 						$elm$svg$Svg$Attributes$fontFamily('Georgia, serif'),
 						$elm$svg$Svg$Attributes$fontStyle('italic'),
 						$elm$svg$Svg$Attributes$fontWeight('bold'),
@@ -7267,33 +7406,6 @@ var $author$project$Main$drawTile = F5(
 						$elm$svg$Svg$text(spec.name)
 					]));
 		}();
-		var interaction = onBoard ? _List_fromArray(
-			[
-				$elm$svg$Svg$Attributes$style('cursor:move;'),
-				tileHandler
-			]) : _List_fromArray(
-			[
-				$elm$svg$Svg$Attributes$pointerEvents('none')
-			]);
-		var clipRect = function (_v3) {
-			var c = _v3.a;
-			var r = _v3.b;
-			return A2(
-				$elm$svg$Svg$rect,
-				_List_fromArray(
-					[
-						$elm$svg$Svg$Attributes$x(
-						$elm$core$String$fromInt(c * u_)),
-						$elm$svg$Svg$Attributes$y(
-						$elm$core$String$fromInt(r * u_)),
-						$elm$svg$Svg$Attributes$width(
-						$elm$core$String$fromInt(u_)),
-						$elm$svg$Svg$Attributes$height(
-						$elm$core$String$fromInt(u_))
-					]),
-				_List_Nil);
-		};
-		var clipId = 'tile-clip-' + (spec.name + ('-' + $elm$core$String$fromInt(p.id)));
 		var markerList = A2(
 			$elm$core$List$map,
 			function (path) {
@@ -7305,7 +7417,7 @@ var $author$project$Main$drawTile = F5(
 							pointsAttr(path)),
 							$elm$svg$Svg$Attributes$stroke('#fff200'),
 							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromFloat(u_ / 5)),
+							$elm$core$String$fromFloat(cellSz / 5)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
 							$elm$svg$Svg$Attributes$clipPath('url(#' + (clipId + ')')),
@@ -7314,14 +7426,52 @@ var $author$project$Main$drawTile = F5(
 					_List_Nil);
 			},
 			A2($author$project$Main$placedMarkerPaths, p, spec));
-		var cells = A2(
-			$elm$core$List$map,
-			function (_v2) {
-				var c = _v2.a;
-				var r = _v2.b;
-				return _Utils_Tuple2(c + p.col, r + p.row);
-			},
-			A2($author$project$Main$specCellsRotated, p.rotation, spec));
+		var cellPx = function (_v3) {
+			var lc = _v3.a;
+			var lr = _v3.b;
+			return _Utils_Tuple2((p.col + (lc * p.scale)) * uf, (p.row + (lr * p.scale)) * uf);
+		};
+		var cellRect = function (lc) {
+			var _v2 = cellPx(lc);
+			var px = _v2.a;
+			var py = _v2.b;
+			return A2(
+				$elm$svg$Svg$rect,
+				_Utils_ap(
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$x(
+							$elm$core$String$fromFloat(px)),
+							$elm$svg$Svg$Attributes$y(
+							$elm$core$String$fromFloat(py)),
+							$elm$svg$Svg$Attributes$width(
+							$elm$core$String$fromFloat(cellSz)),
+							$elm$svg$Svg$Attributes$height(
+							$elm$core$String$fromFloat(cellSz)),
+							$elm$svg$Svg$Attributes$fill(spec.color)
+						]),
+					interaction),
+				_List_Nil);
+		};
+		var clipRect = function (lc) {
+			var _v1 = cellPx(lc);
+			var px = _v1.a;
+			var py = _v1.b;
+			return A2(
+				$elm$svg$Svg$rect,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$x(
+						$elm$core$String$fromFloat(px)),
+						$elm$svg$Svg$Attributes$y(
+						$elm$core$String$fromFloat(py)),
+						$elm$svg$Svg$Attributes$width(
+						$elm$core$String$fromFloat(cellSz)),
+						$elm$svg$Svg$Attributes$height(
+						$elm$core$String$fromFloat(cellSz))
+					]),
+				_List_Nil);
+		};
 		var clipDef = A2(
 			$elm$svg$Svg$defs,
 			_List_Nil,
@@ -7333,25 +7483,26 @@ var $author$project$Main$drawTile = F5(
 						[
 							$elm$svg$Svg$Attributes$id(clipId)
 						]),
-					A2($elm$core$List$map, clipRect, cells))
+					A2($elm$core$List$map, clipRect, localCells))
 				]));
 		var selection = isSelected ? A2(
 			$elm$core$List$map,
-			function (_v1) {
-				var c = _v1.a;
-				var r = _v1.b;
+			function (lc) {
+				var _v0 = cellPx(lc);
+				var px = _v0.a;
+				var py = _v0.b;
 				return A2(
 					$elm$svg$Svg$rect,
 					_List_fromArray(
 						[
 							$elm$svg$Svg$Attributes$x(
-							$elm$core$String$fromInt(c * u_)),
+							$elm$core$String$fromFloat(px)),
 							$elm$svg$Svg$Attributes$y(
-							$elm$core$String$fromInt(r * u_)),
+							$elm$core$String$fromFloat(py)),
 							$elm$svg$Svg$Attributes$width(
-							$elm$core$String$fromInt(u_)),
+							$elm$core$String$fromFloat(cellSz)),
 							$elm$svg$Svg$Attributes$height(
-							$elm$core$String$fromInt(u_)),
+							$elm$core$String$fromFloat(cellSz)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$stroke('#ff6600'),
 							$elm$svg$Svg$Attributes$strokeWidth('2'),
@@ -7359,28 +7510,7 @@ var $author$project$Main$drawTile = F5(
 						]),
 					_List_Nil);
 			},
-			cells) : _List_Nil;
-		var cellRect = function (_v0) {
-			var c = _v0.a;
-			var r = _v0.b;
-			return A2(
-				$elm$svg$Svg$rect,
-				_Utils_ap(
-					_List_fromArray(
-						[
-							$elm$svg$Svg$Attributes$x(
-							$elm$core$String$fromInt(c * u_)),
-							$elm$svg$Svg$Attributes$y(
-							$elm$core$String$fromInt(r * u_)),
-							$elm$svg$Svg$Attributes$width(
-							$elm$core$String$fromInt(u_)),
-							$elm$svg$Svg$Attributes$height(
-							$elm$core$String$fromInt(u_)),
-							$elm$svg$Svg$Attributes$fill(spec.color)
-						]),
-					interaction),
-				_List_Nil);
-		};
+			localCells) : _List_Nil;
 		var bandList = function () {
 			var path = A2($author$project$Main$placedBandPath, p, spec);
 			return ($elm$core$List$length(path) >= 2) ? _List_fromArray(
@@ -7393,7 +7523,7 @@ var $author$project$Main$drawTile = F5(
 							pointsAttr(path)),
 							$elm$svg$Svg$Attributes$stroke('#fff200'),
 							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromInt(u_)),
+							$elm$core$String$fromFloat(cellSz)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$strokeLinejoin('miter'),
 							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
@@ -7407,7 +7537,7 @@ var $author$project$Main$drawTile = F5(
 			$elm$core$List$cons,
 			clipDef,
 			_Utils_ap(
-				A2($elm$core$List$map, cellRect, cells),
+				A2($elm$core$List$map, cellRect, localCells),
 				_Utils_ap(
 					bandList,
 					_Utils_ap(
@@ -7600,7 +7730,7 @@ var $author$project$Main$paletteEntry = F2(
 						pu,
 						false,
 						false,
-						{col: 0, id: -1, kind: spec.name, rotation: 0, row: 0},
+						{col: 0.0, id: -1, kind: spec.name, rotation: 0, row: 0.0, scale: 1.0},
 						spec))
 				]));
 	});

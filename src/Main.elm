@@ -226,7 +226,7 @@ placedBandPath : PlacedTile -> TileSpec -> List ( Float, Float )
 placedBandPath p spec =
     spec.bandPath
         |> List.map (rotatePoint p.rotation (specDims spec))
-        |> List.map (\( x, y ) -> ( x + toFloat p.col, y + toFloat p.row ))
+        |> List.map (\( x, y ) -> ( p.col + x * p.scale, p.row + y * p.scale ))
 
 
 placedLetterPos : PlacedTile -> TileSpec -> ( Float, Float )
@@ -235,7 +235,7 @@ placedLetterPos p spec =
         ( x, y ) =
             rotatePoint p.rotation (specDims spec) spec.letterPos
     in
-    ( x + toFloat p.col, y + toFloat p.row )
+    ( p.col + x * p.scale, p.row + y * p.scale )
 
 
 markerPath : Marker -> List ( Float, Float )
@@ -262,7 +262,7 @@ placedMarkerPaths p spec =
             (\m ->
                 markerPath m
                     |> List.map (rotatePoint p.rotation (specDims spec))
-                    |> List.map (\( x, y ) -> ( x + toFloat p.col, y + toFloat p.row ))
+                    |> List.map (\( x, y ) -> ( p.col + x * p.scale, p.row + y * p.scale ))
             )
 
 
@@ -270,16 +270,23 @@ placedMarkerPaths p spec =
 -- ============================ Overlap ============================
 
 
+{-| Cells occupied by this tile, only meaningful for native-scale tiles.
+Deflated tiles (scale != 1) are ignored in overlap detection.
+-}
 tileCells : PlacedTile -> Set ( Int, Int )
 tileCells p =
-    case lookupSpec p.kind of
-        Just spec ->
-            specCellsRotated p.rotation spec
-                |> List.map (\( c, r ) -> ( c + p.col, r + p.row ))
-                |> Set.fromList
+    if p.scale /= 1.0 then
+        Set.empty
 
-        Nothing ->
-            Set.empty
+    else
+        case lookupSpec p.kind of
+            Just spec ->
+                specCellsRotated p.rotation spec
+                    |> List.map (\( c, r ) -> ( c + round p.col, r + round p.row ))
+                    |> Set.fromList
+
+            Nothing ->
+                Set.empty
 
 
 allOccupiedCells : Maybe Int -> List PlacedTile -> Set ( Int, Int )
@@ -335,20 +342,23 @@ captureRuleFromPlaced placed =
             |> List.map
                 (\t ->
                     { kind = t.kind
-                    , col = t.col - minC
-                    , row = t.row - minR
+                    , col = round (t.col - minC)
+                    , row = round (t.row - minR)
                     , rotation = t.rotation
                     }
                 )
     }
 
 
-{-| Substitute a single tile: produce the list of new tiles that replace it.
-Parent position scales by `factor`; each child lands at (t.col*k + c.col,
-t.row*k + c.row) with the child's stored rotation.
+{-| Inflation substitution: parent position scales by `factor`; each child lands at
+(t.col*k + c.col*t.scale, t.row*k + c.row*t.scale), keeping the parent's scale.
 -}
 expandTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
 expandTile rules factor t =
+    let
+        kf =
+            toFloat factor
+    in
     case Dict.get t.kind rules of
         Just rule ->
             rule.children
@@ -356,16 +366,42 @@ expandTile rules factor t =
                     (\c ->
                         { id = 0
                         , kind = c.kind
-                        , col = t.col * factor + c.col
-                        , row = t.row * factor + c.row
+                        , col = t.col * kf + toFloat c.col * t.scale
+                        , row = t.row * kf + toFloat c.row * t.scale
                         , rotation = c.rotation
+                        , scale = t.scale
                         }
                     )
 
         Nothing ->
-            -- No rule: keep the tile but scale its position so it stays in
-            -- the same place relative to rule-driven neighbours.
-            [ { t | col = t.col * factor, row = t.row * factor } ]
+            [ { t | col = t.col * kf, row = t.row * kf } ]
+
+
+{-| Deflation substitution: children fit inside the parent's footprint at
+scale / factor, so the replacement does not overlap the parent's neighbours.
+-}
+deflateTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
+deflateTile rules factor t =
+    case Dict.get t.kind rules of
+        Just rule ->
+            let
+                childScale =
+                    t.scale / toFloat factor
+            in
+            rule.children
+                |> List.map
+                    (\c ->
+                        { id = 0
+                        , kind = c.kind
+                        , col = t.col + toFloat c.col * childScale
+                        , row = t.row + toFloat c.row * childScale
+                        , rotation = c.rotation
+                        , scale = childScale
+                        }
+                    )
+
+        Nothing ->
+            [ t ]
 
 
 renumber : List PlacedTile -> ( List PlacedTile, Int )
@@ -383,47 +419,118 @@ encodeTile : PlacedTile -> E.Value
 encodeTile p =
     E.object
         [ ( "kind", E.string p.kind )
-        , ( "col", E.int p.col )
-        , ( "row", E.int p.row )
+        , ( "col", E.float p.col )
+        , ( "row", E.float p.row )
         , ( "rotation", E.int p.rotation )
+        , ( "scale", E.float p.scale )
         ]
+
+
+encodeChildTile : ChildTile -> E.Value
+encodeChildTile c =
+    E.object
+        [ ( "kind", E.string c.kind )
+        , ( "col", E.int c.col )
+        , ( "row", E.int c.row )
+        , ( "rotation", E.int c.rotation )
+        ]
+
+
+encodeSubRule : SubRule -> E.Value
+encodeSubRule rule =
+    E.object [ ( "children", E.list encodeChildTile rule.children ) ]
+
+
+encodeRules : Dict String SubRule -> E.Value
+encodeRules rules =
+    rules
+        |> Dict.toList
+        |> List.map (\( k, r ) -> ( k, encodeSubRule r ))
+        |> E.object
 
 
 encodeTiling : Model -> String
 encodeTiling model =
     E.encode 2
         (E.object
-            [ ( "version", E.int 1 )
+            [ ( "version", E.int 2 )
             , ( "tiles", E.list encodeTile model.placed )
+            , ( "rules", encodeRules model.rules )
+            , ( "factor", E.int model.factor )
             ]
         )
 
 
 type alias SavedTile =
     { kind : String
-    , col : Int
-    , row : Int
+    , col : Float
+    , row : Float
     , rotation : Int
+    , scale : Float
     }
 
 
 decodeSavedTile : D.Decoder SavedTile
 decodeSavedTile =
-    D.map4 SavedTile
+    D.map5 SavedTile
+        (D.field "kind" D.string)
+        (D.field "col" D.float)
+        (D.field "row" D.float)
+        (D.field "rotation" D.int)
+        (D.oneOf [ D.field "scale" D.float, D.succeed 1.0 ])
+
+
+decodeChildTile : D.Decoder ChildTile
+decodeChildTile =
+    D.map4 ChildTile
         (D.field "kind" D.string)
         (D.field "col" D.int)
         (D.field "row" D.int)
         (D.field "rotation" D.int)
 
 
-decodeTiling : D.Decoder (List SavedTile)
+decodeSubRule : D.Decoder SubRule
+decodeSubRule =
+    D.map SubRule (D.field "children" (D.list decodeChildTile))
+
+
+decodeRules : D.Decoder (Dict String SubRule)
+decodeRules =
+    D.dict decodeSubRule
+
+
+type alias SavedTiling =
+    { tiles : List SavedTile
+    , rules : Dict String SubRule
+    , factor : Int
+    }
+
+
+decodeTiling : D.Decoder SavedTiling
 decodeTiling =
-    D.field "tiles" (D.list decodeSavedTile)
+    D.map3 SavedTiling
+        (D.field "tiles" (D.list decodeSavedTile))
+        (D.oneOf
+            [ D.field "rules" decodeRules
+            , D.succeed Dict.empty
+            ]
+        )
+        (D.oneOf
+            [ D.field "factor" D.int
+            , D.succeed 2
+            ]
+        )
 
 
 savedToPlaced : Int -> SavedTile -> PlacedTile
 savedToPlaced id s =
-    { id = id, kind = s.kind, col = s.col, row = s.row, rotation = s.rotation }
+    { id = id
+    , kind = s.kind
+    , col = s.col
+    , row = s.row
+    , rotation = s.rotation
+    , scale = s.scale
+    }
 
 
 monthNum : Time.Month -> Int
@@ -477,16 +584,17 @@ saveCmd zone posix model =
 type alias PlacedTile =
     { id : Int
     , kind : String
-    , col : Int
-    , row : Int
+    , col : Float
+    , row : Float
     , rotation : Int
+    , scale : Float
     }
 
 
 type alias TileDrag =
     { id : Int
-    , origCol : Int
-    , origRow : Int
+    , origCol : Float
+    , origRow : Float
     , startX : Float
     , startY : Float
     }
@@ -604,9 +712,10 @@ update msg model =
                         newTile =
                             { id = model.nextId
                             , kind = n
-                            , col = worldCol
-                            , row = worldRow
+                            , col = toFloat worldCol
+                            , row = toFloat worldRow
                             , rotation = model.rotation
+                            , scale = 1.0
                             }
 
                         occupied =
@@ -668,10 +777,10 @@ update msg model =
                             round ((cy - state.startY) / toFloat model.u)
 
                         newCol =
-                            state.origCol + dCol
+                            state.origCol + toFloat dCol
 
                         newRow =
-                            state.origRow + dRow
+                            state.origRow + toFloat dRow
                     in
                     case model.placed |> List.filter (\p -> p.id == state.id) |> List.head of
                         Just p ->
@@ -800,16 +909,18 @@ update msg model =
                         newTiles =
                             List.indexedMap
                                 (\i s -> savedToPlaced (startId + i) s)
-                                saved
+                                saved.tiles
                     in
                     { model
                         | placed = newTiles
-                        , nextId = startId + List.length saved
+                        , nextId = startId + List.length saved.tiles
                         , selectedPlaced = Nothing
                         , selectedKind = Nothing
                         , drag = Nothing
                         , panX = 0
                         , panY = 0
+                        , rules = saved.rules
+                        , factor = saved.factor
                     }
 
                 Err _ ->
@@ -851,36 +962,22 @@ update msg model =
                 Just sid ->
                     case model.placed |> List.filter (\t -> t.id == sid) |> List.head of
                         Just tile ->
-                            case Dict.get tile.kind model.rules of
-                                Just rule ->
-                                    let
-                                        children =
-                                            rule.children
-                                                |> List.map
-                                                    (\c ->
-                                                        { id = 0
-                                                        , kind = c.kind
-                                                        , col = tile.col + c.col
-                                                        , row = tile.row + c.row
-                                                        , rotation = c.rotation
-                                                        }
-                                                    )
+                            let
+                                children =
+                                    deflateTile model.rules model.factor tile
 
-                                        others =
-                                            model.placed |> List.filter (\t -> t.id /= sid)
+                                others =
+                                    model.placed |> List.filter (\t -> t.id /= sid)
 
-                                        ( withIds, count ) =
-                                            renumber (others ++ children)
-                                    in
-                                    { model
-                                        | placed = withIds
-                                        , nextId = count
-                                        , selectedPlaced = Nothing
-                                        , selectedKind = Nothing
-                                    }
-
-                                Nothing ->
-                                    model
+                                ( withIds, count ) =
+                                    renumber (others ++ children)
+                            in
+                            { model
+                                | placed = withIds
+                                , nextId = count
+                                , selectedPlaced = Nothing
+                                , selectedKind = Nothing
+                            }
 
                         Nothing ->
                             model
@@ -1041,9 +1138,20 @@ drawPlacedTileOnBoard model p =
 drawTile : Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
 drawTile u_ onBoard isSelected p spec =
     let
-        cells =
+        uf =
+            toFloat u_
+
+        cellSz =
+            p.scale * uf
+
+        localCells =
             specCellsRotated p.rotation spec
-                |> List.map (\( c, r ) -> ( c + p.col, r + p.row ))
+
+        -- Screen top-left (px) for a local tile cell (lc, lr).
+        cellPx ( lc, lr ) =
+            ( (p.col + toFloat lc * p.scale) * uf
+            , (p.row + toFloat lr * p.scale) * uf
+            )
 
         clipId =
             "tile-clip-" ++ spec.name ++ "-" ++ String.fromInt p.id
@@ -1063,40 +1171,48 @@ drawTile u_ onBoard isSelected p spec =
             else
                 [ SA.pointerEvents "none" ]
 
-        cellRect ( c, r ) =
+        cellRect lc =
+            let
+                ( px, py ) =
+                    cellPx lc
+            in
             rect
-                ([ SA.x (String.fromInt (c * u_))
-                 , SA.y (String.fromInt (r * u_))
-                 , SA.width (String.fromInt u_)
-                 , SA.height (String.fromInt u_)
+                ([ SA.x (String.fromFloat px)
+                 , SA.y (String.fromFloat py)
+                 , SA.width (String.fromFloat cellSz)
+                 , SA.height (String.fromFloat cellSz)
                  , SA.fill spec.color
                  ]
                     ++ interaction
                 )
                 []
 
-        clipRect ( c, r ) =
+        clipRect lc =
+            let
+                ( px, py ) =
+                    cellPx lc
+            in
             rect
-                [ SA.x (String.fromInt (c * u_))
-                , SA.y (String.fromInt (r * u_))
-                , SA.width (String.fromInt u_)
-                , SA.height (String.fromInt u_)
+                [ SA.x (String.fromFloat px)
+                , SA.y (String.fromFloat py)
+                , SA.width (String.fromFloat cellSz)
+                , SA.height (String.fromFloat cellSz)
                 ]
                 []
 
         clipDef =
             defs []
                 [ Svg.clipPath [ SA.id clipId ]
-                    (List.map clipRect cells)
+                    (List.map clipRect localCells)
                 ]
 
         pointsAttr path =
             path
                 |> List.map
                     (\( x, y ) ->
-                        String.fromFloat (x * toFloat u_)
+                        String.fromFloat (x * uf)
                             ++ ","
-                            ++ String.fromFloat (y * toFloat u_)
+                            ++ String.fromFloat (y * uf)
                     )
                 |> String.join " "
 
@@ -1109,7 +1225,7 @@ drawTile u_ onBoard isSelected p spec =
                 [ polyline
                     [ SA.points (pointsAttr path)
                     , SA.stroke "#fff200"
-                    , SA.strokeWidth (String.fromInt u_)
+                    , SA.strokeWidth (String.fromFloat cellSz)
                     , SA.fill "none"
                     , SA.strokeLinejoin "miter"
                     , SA.strokeLinecap "butt"
@@ -1129,7 +1245,7 @@ drawTile u_ onBoard isSelected p spec =
                         polyline
                             [ SA.points (pointsAttr path)
                             , SA.stroke "#fff200"
-                            , SA.strokeWidth (String.fromFloat (toFloat u_ / 5))
+                            , SA.strokeWidth (String.fromFloat (cellSz / 5))
                             , SA.fill "none"
                             , SA.strokeLinecap "butt"
                             , SA.clipPath ("url(#" ++ clipId ++ ")")
@@ -1140,14 +1256,18 @@ drawTile u_ onBoard isSelected p spec =
 
         selection =
             if isSelected then
-                cells
+                localCells
                     |> List.map
-                        (\( c, r ) ->
+                        (\lc ->
+                            let
+                                ( px, py ) =
+                                    cellPx lc
+                            in
                             rect
-                                [ SA.x (String.fromInt (c * u_))
-                                , SA.y (String.fromInt (r * u_))
-                                , SA.width (String.fromInt u_)
-                                , SA.height (String.fromInt u_)
+                                [ SA.x (String.fromFloat px)
+                                , SA.y (String.fromFloat py)
+                                , SA.width (String.fromFloat cellSz)
+                                , SA.height (String.fromFloat cellSz)
                                 , SA.fill "none"
                                 , SA.stroke "#ff6600"
                                 , SA.strokeWidth "2"
@@ -1165,10 +1285,10 @@ drawTile u_ onBoard isSelected p spec =
                     placedLetterPos p spec
 
                 lxPx =
-                    lx * toFloat u_
+                    lx * uf
 
                 lyPx =
-                    ly * toFloat u_
+                    ly * uf
 
                 rotTransform =
                     "rotate("
@@ -1184,7 +1304,7 @@ drawTile u_ onBoard isSelected p spec =
                 , SA.y (String.fromFloat lyPx)
                 , SA.textAnchor "middle"
                 , SA.dominantBaseline "central"
-                , SA.fontSize (String.fromFloat (toFloat u_ * 1.0))
+                , SA.fontSize (String.fromFloat (cellSz * 1.0))
                 , SA.fontFamily "Georgia, serif"
                 , SA.fontStyle "italic"
                 , SA.fontWeight "bold"
@@ -1194,7 +1314,7 @@ drawTile u_ onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    clipDef :: List.map cellRect cells ++ bandList ++ markerList ++ selection ++ [ letter ]
+    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ selection ++ [ letter ]
 
 
 
@@ -1291,7 +1411,7 @@ paletteEntry model spec =
             (drawTile pu
                 False
                 False
-                { id = -1, kind = spec.name, col = 0, row = 0, rotation = 0 }
+                { id = -1, kind = spec.name, col = 0.0, row = 0.0, rotation = 0, scale = 1.0 }
                 spec
             )
         ]
