@@ -682,6 +682,7 @@ type Msg
     | LoadFileSelected File
     | LoadFileLoaded String
     | CaptureRule String
+    | ShowRule String
     | ApplyAll
     | ApplySelected
 
@@ -937,6 +938,39 @@ update msg model =
                             (captureRuleFromPlaced model.placed)
                             model.rules
                 }
+
+        ShowRule kind ->
+            case Dict.get kind model.rules of
+                Just rule ->
+                    let
+                        startId =
+                            model.nextId
+
+                        newTiles =
+                            rule.children
+                                |> List.indexedMap
+                                    (\i c ->
+                                        { id = startId + i
+                                        , kind = c.kind
+                                        , col = toFloat c.col
+                                        , row = toFloat c.row
+                                        , rotation = c.rotation
+                                        , scale = 1.0
+                                        }
+                                    )
+                    in
+                    { model
+                        | placed = newTiles
+                        , nextId = startId + List.length newTiles
+                        , selectedPlaced = Nothing
+                        , selectedKind = Nothing
+                        , drag = Nothing
+                        , panX = 0
+                        , panY = 0
+                    }
+
+                Nothing ->
+                    model
 
         ApplyAll ->
             let
@@ -1344,11 +1378,14 @@ viewSidebar model =
             [ button [ HE.onClick (CaptureRule "A") ] [ text "Capture A" ]
             , button [ HE.onClick (CaptureRule "R") ] [ text "Capture R" ]
             , button [ HE.onClick (CaptureRule "T") ] [ text "Capture T" ]
+            , button [ HE.onClick (ShowRule "A") ] [ text "Show A" ]
+            , button [ HE.onClick (ShowRule "R") ] [ text "Show R" ]
+            , button [ HE.onClick (ShowRule "T") ] [ text "Show T" ]
             , button [ HE.onClick ApplyAll ] [ text "Apply all" ]
             , button [ HE.onClick ApplySelected ] [ text "Apply selected" ]
             ]
         , p [ HA.class "status" ]
-            [ text ("rules: " ++ rulesStatus model.rules) ]
+            [ text (rulesStatus model.rules) ]
         , h3 [] [ text "File" ]
         , div [ HA.class "controls" ]
             [ button [ HE.onClick SaveMsg ] [ text "Save" ]
@@ -1371,13 +1408,14 @@ rulesStatus : Dict String SubRule -> String
 rulesStatus rules =
     let
         tag kind =
-            if Dict.member kind rules then
-                kind
+            case Dict.get kind rules of
+                Just rule ->
+                    kind ++ " (" ++ String.fromInt (List.length rule.children) ++ ")"
 
-            else
-                "·"
+                Nothing ->
+                    kind ++ " (—)"
     in
-    String.join " " [ tag "A", tag "R", tag "T" ]
+    String.join "   " [ tag "A", tag "R", tag "T" ]
 
 
 paletteEntry : Model -> TileSpec -> Html Msg

@@ -7071,32 +7071,59 @@ var $author$project$Main$update = F2(
 									$author$project$Main$captureRuleFromPlaced(model.placed),
 									model.rules)
 							});
+					case 'ShowRule':
+						var kind = msg.a;
+						var _v8 = A2($elm$core$Dict$get, kind, model.rules);
+						if (_v8.$ === 'Just') {
+							var rule = _v8.a;
+							var startId = model.nextId;
+							var newTiles = A2(
+								$elm$core$List$indexedMap,
+								F2(
+									function (i, c) {
+										return {col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
+									}),
+								rule.children);
+							return _Utils_update(
+								model,
+								{
+									drag: $elm$core$Maybe$Nothing,
+									nextId: startId + $elm$core$List$length(newTiles),
+									panX: 0,
+									panY: 0,
+									placed: newTiles,
+									selectedKind: $elm$core$Maybe$Nothing,
+									selectedPlaced: $elm$core$Maybe$Nothing
+								});
+						} else {
+							return model;
+						}
 					case 'ApplyAll':
 						var newTiles = A2(
 							$elm$core$List$concatMap,
 							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var _v8 = $author$project$Main$renumber(newTiles);
-						var withIds = _v8.a;
-						var count = _v8.b;
+						var _v9 = $author$project$Main$renumber(newTiles);
+						var withIds = _v9.a;
+						var count = _v9.b;
 						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 					default:
-						var _v9 = model.selectedPlaced;
-						if (_v9.$ === 'Nothing') {
+						var _v10 = model.selectedPlaced;
+						if (_v10.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v9.a;
-							var _v10 = $elm$core$List$head(
+							var sid = _v10.a;
+							var _v11 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v10.$ === 'Just') {
-								var tile = _v10.a;
+							if (_v11.$ === 'Just') {
+								var tile = _v11.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7104,10 +7131,10 @@ var $author$project$Main$update = F2(
 									},
 									model.placed);
 								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v11 = $author$project$Main$renumber(
+								var _v12 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v11.a;
-								var count = _v11.b;
+								var withIds = _v12.a;
+								var count = _v12.b;
 								return _Utils_update(
 									model,
 									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
@@ -7679,6 +7706,9 @@ var $author$project$Main$LoadMsg = {$: 'LoadMsg'};
 var $author$project$Main$ResetView = {$: 'ResetView'};
 var $author$project$Main$RotateMsg = {$: 'RotateMsg'};
 var $author$project$Main$SaveMsg = {$: 'SaveMsg'};
+var $author$project$Main$ShowRule = function (a) {
+	return {$: 'ShowRule', a: a};
+};
 var $author$project$Main$ZoomIn = {$: 'ZoomIn'};
 var $author$project$Main$ZoomOut = {$: 'ZoomOut'};
 var $elm$html$Html$button = _VirtualDom_node('button');
@@ -7736,11 +7766,18 @@ var $author$project$Main$paletteEntry = F2(
 	});
 var $author$project$Main$rulesStatus = function (rules) {
 	var tag = function (kind) {
-		return A2($elm$core$Dict$member, kind, rules) ? kind : '·';
+		var _v0 = A2($elm$core$Dict$get, kind, rules);
+		if (_v0.$ === 'Just') {
+			var rule = _v0.a;
+			return kind + (' (' + ($elm$core$String$fromInt(
+				$elm$core$List$length(rule.children)) + ')'));
+		} else {
+			return kind + ' (—)';
+		}
 	};
 	return A2(
 		$elm$core$String$join,
-		' ',
+		'   ',
 		_List_fromArray(
 			[
 				tag('A'),
@@ -7919,6 +7956,39 @@ var $author$project$Main$viewSidebar = function (model) {
 						$elm$html$Html$button,
 						_List_fromArray(
 							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$ShowRule('A'))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Show A')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$ShowRule('R'))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Show R')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$ShowRule('T'))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Show T')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
 								$elm$html$Html$Events$onClick($author$project$Main$ApplyAll)
 							]),
 						_List_fromArray(
@@ -7945,7 +8015,7 @@ var $author$project$Main$viewSidebar = function (model) {
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						'rules: ' + $author$project$Main$rulesStatus(model.rules))
+						$author$project$Main$rulesStatus(model.rules))
 					])),
 				A2(
 				$elm$html$Html$h3,
