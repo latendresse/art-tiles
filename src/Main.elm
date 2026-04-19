@@ -3,6 +3,7 @@ module Main exposing (main)
 import Browser
 import Browser.Dom
 import Browser.Events
+import Dict exposing (Dict)
 import File exposing (File)
 import File.Download
 import File.Select
@@ -302,6 +303,79 @@ wouldOverlap occupied tile =
 
 
 
+-- ============================ Substitution ============================
+
+
+type alias ChildTile =
+    { kind : String
+    , col : Int
+    , row : Int
+    , rotation : Int
+    }
+
+
+type alias SubRule =
+    { children : List ChildTile }
+
+
+{-| Turn the currently placed tiles into a SubRule, normalised so the
+bounding-box top-left is at (0, 0).
+-}
+captureRuleFromPlaced : List PlacedTile -> SubRule
+captureRuleFromPlaced placed =
+    let
+        minC =
+            placed |> List.map .col |> List.minimum |> Maybe.withDefault 0
+
+        minR =
+            placed |> List.map .row |> List.minimum |> Maybe.withDefault 0
+    in
+    { children =
+        placed
+            |> List.map
+                (\t ->
+                    { kind = t.kind
+                    , col = t.col - minC
+                    , row = t.row - minR
+                    , rotation = t.rotation
+                    }
+                )
+    }
+
+
+{-| Substitute a single tile: produce the list of new tiles that replace it.
+Parent position scales by `factor`; each child lands at (t.col*k + c.col,
+t.row*k + c.row) with the child's stored rotation.
+-}
+expandTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
+expandTile rules factor t =
+    case Dict.get t.kind rules of
+        Just rule ->
+            rule.children
+                |> List.map
+                    (\c ->
+                        { id = 0
+                        , kind = c.kind
+                        , col = t.col * factor + c.col
+                        , row = t.row * factor + c.row
+                        , rotation = c.rotation
+                        }
+                    )
+
+        Nothing ->
+            -- No rule: keep the tile but scale its position so it stays in
+            -- the same place relative to rule-driven neighbours.
+            [ { t | col = t.col * factor, row = t.row * factor } ]
+
+
+renumber : List PlacedTile -> ( List PlacedTile, Int )
+renumber tiles =
+    ( List.indexedMap (\i t -> { t | id = i }) tiles
+    , List.length tiles
+    )
+
+
+
 -- ============================ Save / serialize ============================
 
 
@@ -443,6 +517,8 @@ type alias Model =
     , u : Int
     , windowW : Int
     , windowH : Int
+    , rules : Dict String SubRule
+    , factor : Int
     }
 
 
@@ -459,6 +535,8 @@ init _ =
       , u = defaultU
       , windowW = 1200
       , windowH = 800
+      , rules = Dict.empty
+      , factor = 2
       }
     , Task.perform
         (\v -> Resize (round v.viewport.width) (round v.viewport.height))
@@ -495,6 +573,9 @@ type Msg
     | LoadMsg
     | LoadFileSelected File
     | LoadFileLoaded String
+    | CaptureRule String
+    | ApplyAll
+    | ApplySelected
 
 
 
@@ -733,6 +814,76 @@ update msg model =
 
                 Err _ ->
                     model
+
+        CaptureRule kind ->
+            if List.isEmpty model.placed then
+                model
+
+            else
+                { model
+                    | rules =
+                        Dict.insert kind
+                            (captureRuleFromPlaced model.placed)
+                            model.rules
+                }
+
+        ApplyAll ->
+            let
+                newTiles =
+                    model.placed
+                        |> List.concatMap (expandTile model.rules model.factor)
+
+                ( withIds, count ) =
+                    renumber newTiles
+            in
+            { model
+                | placed = withIds
+                , nextId = count
+                , selectedPlaced = Nothing
+                , selectedKind = Nothing
+            }
+
+        ApplySelected ->
+            case model.selectedPlaced of
+                Nothing ->
+                    model
+
+                Just sid ->
+                    case model.placed |> List.filter (\t -> t.id == sid) |> List.head of
+                        Just tile ->
+                            case Dict.get tile.kind model.rules of
+                                Just rule ->
+                                    let
+                                        children =
+                                            rule.children
+                                                |> List.map
+                                                    (\c ->
+                                                        { id = 0
+                                                        , kind = c.kind
+                                                        , col = tile.col + c.col
+                                                        , row = tile.row + c.row
+                                                        , rotation = c.rotation
+                                                        }
+                                                    )
+
+                                        others =
+                                            model.placed |> List.filter (\t -> t.id /= sid)
+
+                                        ( withIds, count ) =
+                                            renumber (others ++ children)
+                                    in
+                                    { model
+                                        | placed = withIds
+                                        , nextId = count
+                                        , selectedPlaced = Nothing
+                                        , selectedKind = Nothing
+                                    }
+
+                                Nothing ->
+                                    model
+
+                        Nothing ->
+                            model
     , case msg of
         SaveMsg ->
             Task.perform identity (Task.map2 SaveAtTime Time.here Time.now)
@@ -1068,6 +1219,16 @@ viewSidebar model =
             , button [ HE.onClick ZoomOut ] [ text "Zoom \u{2212}" ]
             , button [ HE.onClick ResetView ] [ text "Reset" ]
             ]
+        , h3 [] [ text "Substitution" ]
+        , div [ HA.class "controls" ]
+            [ button [ HE.onClick (CaptureRule "A") ] [ text "Capture A" ]
+            , button [ HE.onClick (CaptureRule "R") ] [ text "Capture R" ]
+            , button [ HE.onClick (CaptureRule "T") ] [ text "Capture T" ]
+            , button [ HE.onClick ApplyAll ] [ text "Apply all" ]
+            , button [ HE.onClick ApplySelected ] [ text "Apply selected" ]
+            ]
+        , p [ HA.class "status" ]
+            [ text ("rules: " ++ rulesStatus model.rules) ]
         , h3 [] [ text "File" ]
         , div [ HA.class "controls" ]
             [ button [ HE.onClick SaveMsg ] [ text "Save" ]
@@ -1084,6 +1245,19 @@ viewSidebar model =
                 )
             ]
         ]
+
+
+rulesStatus : Dict String SubRule -> String
+rulesStatus rules =
+    let
+        tag kind =
+            if Dict.member kind rules then
+                kind
+
+            else
+                "·"
+    in
+    String.join " " [ tag "A", tag "R", tag "T" ]
 
 
 paletteEntry : Model -> TileSpec -> Html Msg

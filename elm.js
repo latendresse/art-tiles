@@ -5425,11 +5425,13 @@ var $author$project$Main$Resize = F2(
 		return {$: 'Resize', a: a, b: b};
 	});
 var $author$project$Main$defaultU = 22;
+var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
+var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
 var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
-		{drag: $elm$core$Maybe$Nothing, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
+		{drag: $elm$core$Maybe$Nothing, factor: 2, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: $elm$core$Dict$empty, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
 		A2(
 			$elm$core$Task$perform,
 			function (v) {
@@ -5458,8 +5460,6 @@ var $elm$browser$Browser$Events$State = F2(
 	function (subs, pids) {
 		return {pids: pids, subs: subs};
 	});
-var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
-var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
 var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
 	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
 var $elm$browser$Browser$Events$nodeToKey = function (node) {
@@ -6154,6 +6154,55 @@ var $author$project$Main$allOccupiedCells = F2(
 				},
 				placed));
 	});
+var $elm$core$Basics$min = F2(
+	function (x, y) {
+		return (_Utils_cmp(x, y) < 0) ? x : y;
+	});
+var $elm$core$List$minimum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$min, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Main$captureRuleFromPlaced = function (placed) {
+	var minR = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$minimum(
+			A2(
+				$elm$core$List$map,
+				function ($) {
+					return $.row;
+				},
+				placed)));
+	var minC = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$minimum(
+			A2(
+				$elm$core$List$map,
+				function ($) {
+					return $.col;
+				},
+				placed)));
+	return {
+		children: A2(
+			$elm$core$List$map,
+			function (t) {
+				return {col: t.col - minC, kind: t.kind, rotation: t.rotation, row: t.row - minR};
+			},
+			placed)
+	};
+};
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
 var $elm$json$Json$Decode$decodeString = _Json_runOnString;
 var $author$project$Main$SavedTile = F4(
 	function (kind, col, row, rotation) {
@@ -6173,6 +6222,57 @@ var $author$project$Main$decodeTiling = A2(
 	$elm$json$Json$Decode$field,
 	'tiles',
 	$elm$json$Json$Decode$list($author$project$Main$decodeSavedTile));
+var $elm$core$Dict$get = F2(
+	function (targetKey, dict) {
+		get:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var _v1 = A2($elm$core$Basics$compare, targetKey, key);
+				switch (_v1.$) {
+					case 'LT':
+						var $temp$targetKey = targetKey,
+							$temp$dict = left;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+					case 'EQ':
+						return $elm$core$Maybe$Just(value);
+					default:
+						var $temp$targetKey = targetKey,
+							$temp$dict = right;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+				}
+			}
+		}
+	});
+var $author$project$Main$expandTile = F3(
+	function (rules, factor, t) {
+		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
+		if (_v0.$ === 'Just') {
+			var rule = _v0.a;
+			return A2(
+				$elm$core$List$map,
+				function (c) {
+					return {col: (t.col * factor) + c.col, id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * factor) + c.row};
+				},
+				rule.children);
+		} else {
+			return _List_fromArray(
+				[
+					_Utils_update(
+					t,
+					{col: t.col * factor, row: t.row * factor})
+				]);
+		}
+	});
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
@@ -6196,15 +6296,31 @@ var $elm$time$Time$Zone = F2(
 	});
 var $elm$time$Time$customZone = $elm$time$Time$Zone;
 var $elm$time$Time$here = _Time_here(_Utils_Tuple0);
+var $elm$core$List$isEmpty = function (xs) {
+	if (!xs.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
 var $author$project$Main$maxU = 60;
-var $elm$core$Basics$min = F2(
-	function (x, y) {
-		return (_Utils_cmp(x, y) < 0) ? x : y;
-	});
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
+var $author$project$Main$renumber = function (tiles) {
+	return _Utils_Tuple2(
+		A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (i, t) {
+					return _Utils_update(
+						t,
+						{id: i});
+				}),
+			tiles),
+		$elm$core$List$length(tiles));
+};
 var $elm$json$Json$Encode$int = _Json_wrap;
 var $elm$json$Json$Encode$object = function (pairs) {
 	return _Json_wrap(
@@ -6521,37 +6637,6 @@ var $elm$core$Dict$filter = F2(
 			$elm$core$Dict$empty,
 			dict);
 	});
-var $elm$core$Dict$get = F2(
-	function (targetKey, dict) {
-		get:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return $elm$core$Maybe$Nothing;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var _v1 = A2($elm$core$Basics$compare, targetKey, key);
-				switch (_v1.$) {
-					case 'LT':
-						var $temp$targetKey = targetKey,
-							$temp$dict = left;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-					case 'EQ':
-						return $elm$core$Maybe$Just(value);
-					default:
-						var $temp$targetKey = targetKey,
-							$temp$dict = right;
-						targetKey = $temp$targetKey;
-						dict = $temp$dict;
-						continue get;
-				}
-			}
-		}
-	});
 var $elm$core$Dict$member = F2(
 	function (key, dict) {
 		var _v0 = A2($elm$core$Dict$get, key, dict);
@@ -6810,7 +6895,7 @@ var $author$project$Main$update = F2(
 						return model;
 					case 'LoadFileSelected':
 						return model;
-					default:
+					case 'LoadFileLoaded':
 						var content = msg.a;
 						var _v7 = A2($elm$json$Json$Decode$decodeString, $author$project$Main$decodeTiling, content);
 						if (_v7.$ === 'Ok') {
@@ -6836,6 +6921,72 @@ var $author$project$Main$update = F2(
 								});
 						} else {
 							return model;
+						}
+					case 'CaptureRule':
+						var kind = msg.a;
+						return $elm$core$List$isEmpty(model.placed) ? model : _Utils_update(
+							model,
+							{
+								rules: A3(
+									$elm$core$Dict$insert,
+									kind,
+									$author$project$Main$captureRuleFromPlaced(model.placed),
+									model.rules)
+							});
+					case 'ApplyAll':
+						var newTiles = A2(
+							$elm$core$List$concatMap,
+							A2($author$project$Main$expandTile, model.rules, model.factor),
+							model.placed);
+						var _v8 = $author$project$Main$renumber(newTiles);
+						var withIds = _v8.a;
+						var count = _v8.b;
+						return _Utils_update(
+							model,
+							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
+					default:
+						var _v9 = model.selectedPlaced;
+						if (_v9.$ === 'Nothing') {
+							return model;
+						} else {
+							var sid = _v9.a;
+							var _v10 = $elm$core$List$head(
+								A2(
+									$elm$core$List$filter,
+									function (t) {
+										return _Utils_eq(t.id, sid);
+									},
+									model.placed));
+							if (_v10.$ === 'Just') {
+								var tile = _v10.a;
+								var _v11 = A2($elm$core$Dict$get, tile.kind, model.rules);
+								if (_v11.$ === 'Just') {
+									var rule = _v11.a;
+									var others = A2(
+										$elm$core$List$filter,
+										function (t) {
+											return !_Utils_eq(t.id, sid);
+										},
+										model.placed);
+									var children = A2(
+										$elm$core$List$map,
+										function (c) {
+											return {col: tile.col + c.col, id: 0, kind: c.kind, rotation: c.rotation, row: tile.row + c.row};
+										},
+										rule.children);
+									var _v12 = $author$project$Main$renumber(
+										_Utils_ap(others, children));
+									var withIds = _v12.a;
+									var count = _v12.b;
+									return _Utils_update(
+										model,
+										{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
+								} else {
+									return model;
+								}
+							} else {
+								return model;
+							}
 						}
 				}
 			}(),
@@ -6931,11 +7082,6 @@ var $author$project$Main$background = function (model) {
 		_List_Nil);
 };
 var $elm$svg$Svg$Attributes$class = _VirtualDom_attribute('class');
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
 var $author$project$Main$TileMouseDown = F3(
 	function (a, b, c) {
 		return {$: 'TileMouseDown', a: a, b: b, c: c};
@@ -7392,6 +7538,11 @@ var $author$project$Main$viewBoard = function (model) {
 						model.placed)))
 			]));
 };
+var $author$project$Main$ApplyAll = {$: 'ApplyAll'};
+var $author$project$Main$ApplySelected = {$: 'ApplySelected'};
+var $author$project$Main$CaptureRule = function (a) {
+	return {$: 'CaptureRule', a: a};
+};
 var $author$project$Main$ClearMsg = {$: 'ClearMsg'};
 var $author$project$Main$DeleteMsg = {$: 'DeleteMsg'};
 var $author$project$Main$LoadMsg = {$: 'LoadMsg'};
@@ -7453,6 +7604,20 @@ var $author$project$Main$paletteEntry = F2(
 						spec))
 				]));
 	});
+var $author$project$Main$rulesStatus = function (rules) {
+	var tag = function (kind) {
+		return A2($elm$core$Dict$member, kind, rules) ? kind : '·';
+	};
+	return A2(
+		$elm$core$String$join,
+		' ',
+		_List_fromArray(
+			[
+				tag('A'),
+				tag('R'),
+				tag('T')
+			]));
+};
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $author$project$Main$viewSidebar = function (model) {
 	return A2(
@@ -7571,6 +7736,86 @@ var $author$project$Main$viewSidebar = function (model) {
 							[
 								$elm$html$Html$text('Reset')
 							]))
+					])),
+				A2(
+				$elm$html$Html$h3,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Substitution')
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('controls')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$CaptureRule('A'))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Capture A')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$CaptureRule('R'))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Capture R')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$CaptureRule('T'))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Capture T')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$ApplyAll)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Apply all')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$ApplySelected)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Apply selected')
+							]))
+					])),
+				A2(
+				$elm$html$Html$p,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('status')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(
+						'rules: ' + $author$project$Main$rulesStatus(model.rules))
 					])),
 				A2(
 				$elm$html$Html$h3,
