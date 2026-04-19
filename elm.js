@@ -5987,6 +5987,46 @@ var $author$project$Main$placedLetterPos = F2(
 		var y = _v0.b;
 		return _Utils_Tuple2(x + p.col, y + p.row);
 	});
+var $author$project$Main$markerPath = function (m) {
+	var cy = m.row + 0.5;
+	var cx = m.col + 0.5;
+	var _v0 = m.dir;
+	if (_v0.$ === 'H') {
+		return _List_fromArray(
+			[
+				_Utils_Tuple2(cx - 0.5, cy),
+				_Utils_Tuple2(cx + 0.5, cy)
+			]);
+	} else {
+		return _List_fromArray(
+			[
+				_Utils_Tuple2(cx, cy - 0.5),
+				_Utils_Tuple2(cx, cy + 0.5)
+			]);
+	}
+};
+var $author$project$Main$placedMarkerPaths = F2(
+	function (p, spec) {
+		return A2(
+			$elm$core$List$map,
+			function (m) {
+				return A2(
+					$elm$core$List$map,
+					function (_v0) {
+						var x = _v0.a;
+						var y = _v0.b;
+						return _Utils_Tuple2(x + p.col, y + p.row);
+					},
+					A2(
+						$elm$core$List$map,
+						A2(
+							$author$project$Main$rotatePoint,
+							p.rotation,
+							$author$project$Main$specDims(spec)),
+						$author$project$Main$markerPath(m)));
+			},
+			spec.markers);
+	});
 var $elm$svg$Svg$Attributes$pointerEvents = _VirtualDom_attribute('pointer-events');
 var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
 var $elm$svg$Svg$polyline = $elm$svg$Svg$trustedNode('polyline');
@@ -6082,10 +6122,23 @@ var $author$project$Main$drawTile = F4(
 						A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float),
 						A2($elm$json$Json$Decode$field, 'clientY', $elm$json$Json$Decode$float)));
 			});
+		var pointsAttr = function (path) {
+			return A2(
+				$elm$core$String$join,
+				' ',
+				A2(
+					$elm$core$List$map,
+					function (_v5) {
+						var x = _v5.a;
+						var y = _v5.b;
+						return $elm$core$String$fromFloat(x * $author$project$Main$u) + (',' + $elm$core$String$fromFloat(y * $author$project$Main$u));
+					},
+					path));
+		};
 		var letter = function () {
-			var _v5 = A2($author$project$Main$placedLetterPos, p, spec);
-			var lx = _v5.a;
-			var ly = _v5.b;
+			var _v4 = A2($author$project$Main$placedLetterPos, p, spec);
+			var lx = _v4.a;
+			var ly = _v4.b;
 			return A2(
 				$elm$svg$Svg$text_,
 				_List_fromArray(
@@ -6120,9 +6173,9 @@ var $author$project$Main$drawTile = F4(
 						$elm$svg$Svg$Attributes$pointerEvents('none')
 					]);
 			});
-		var clipRect = function (_v4) {
-			var c = _v4.a;
-			var r = _v4.b;
+		var clipRect = function (_v3) {
+			var c = _v3.a;
+			var r = _v3.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_List_fromArray(
@@ -6139,11 +6192,31 @@ var $author$project$Main$drawTile = F4(
 				_List_Nil);
 		};
 		var clipId = 'tile-clip-' + (spec.name + ('-' + $elm$core$String$fromInt(p.id)));
+		var markerList = A2(
+			$elm$core$List$map,
+			function (path) {
+				return A2(
+					$elm$svg$Svg$polyline,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$points(
+							pointsAttr(path)),
+							$elm$svg$Svg$Attributes$stroke('#fff200'),
+							$elm$svg$Svg$Attributes$strokeWidth(
+							$elm$core$String$fromFloat($author$project$Main$u / 5)),
+							$elm$svg$Svg$Attributes$fill('none'),
+							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
+							$elm$svg$Svg$Attributes$clipPath('url(#' + (clipId + ')')),
+							$elm$svg$Svg$Attributes$pointerEvents('none')
+						]),
+					_List_Nil);
+			},
+			A2($author$project$Main$placedMarkerPaths, p, spec));
 		var cells = A2(
 			$elm$core$List$map,
-			function (_v3) {
-				var c = _v3.a;
-				var r = _v3.b;
+			function (_v2) {
+				var c = _v2.a;
+				var r = _v2.b;
 				return _Utils_Tuple2(c + p.col, r + p.row);
 			},
 			A2($author$project$Main$specCellsRotated, p.rotation, spec));
@@ -6162,9 +6235,9 @@ var $author$project$Main$drawTile = F4(
 				]));
 		var selection = isSelected ? A2(
 			$elm$core$List$map,
-			function (_v2) {
-				var c = _v2.a;
-				var r = _v2.b;
+			function (_v1) {
+				var c = _v1.a;
+				var r = _v1.b;
 				return A2(
 					$elm$svg$Svg$rect,
 					_List_fromArray(
@@ -6185,9 +6258,9 @@ var $author$project$Main$drawTile = F4(
 					_List_Nil);
 			},
 			cells) : _List_Nil;
-		var cellRect = function (_v1) {
-			var c = _v1.a;
-			var r = _v1.b;
+		var cellRect = function (_v0) {
+			var c = _v0.a;
+			var r = _v0.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_Utils_ap(
@@ -6210,24 +6283,14 @@ var $author$project$Main$drawTile = F4(
 		};
 		var bandList = function () {
 			var path = A2($author$project$Main$placedBandPath, p, spec);
-			var pts = A2(
-				$elm$core$String$join,
-				' ',
-				A2(
-					$elm$core$List$map,
-					function (_v0) {
-						var x = _v0.a;
-						var y = _v0.b;
-						return $elm$core$String$fromFloat(x * $author$project$Main$u) + (',' + $elm$core$String$fromFloat(y * $author$project$Main$u));
-					},
-					path));
 			return ($elm$core$List$length(path) >= 2) ? _List_fromArray(
 				[
 					A2(
 					$elm$svg$Svg$polyline,
 					_List_fromArray(
 						[
-							$elm$svg$Svg$Attributes$points(pts),
+							$elm$svg$Svg$Attributes$points(
+							pointsAttr(path)),
 							$elm$svg$Svg$Attributes$stroke('#fff200'),
 							$elm$svg$Svg$Attributes$strokeWidth(
 							$elm$core$String$fromInt($author$project$Main$u)),
@@ -6248,10 +6311,14 @@ var $author$project$Main$drawTile = F4(
 				_Utils_ap(
 					bandList,
 					_Utils_ap(
-						selection,
-						_List_fromArray(
-							[letter])))));
+						markerList,
+						_Utils_ap(
+							selection,
+							_List_fromArray(
+								[letter]))))));
 	});
+var $author$project$Main$H = {$: 'H'};
+var $author$project$Main$V = {$: 'V'};
 var $author$project$Main$tileA = {
 	bandPath: _List_fromArray(
 		[
@@ -6263,6 +6330,11 @@ var $author$project$Main$tileA = {
 	grid: _List_fromArray(
 		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
 	letterPos: _Utils_Tuple2(3, 4),
+	markers: _List_fromArray(
+		[
+			{col: 2, dir: $author$project$Main$H, row: 0},
+			{col: 7, dir: $author$project$Main$V, row: 3}
+		]),
 	name: 'A'
 };
 var $author$project$Main$tileR = {
@@ -6276,6 +6348,11 @@ var $author$project$Main$tileR = {
 	grid: _List_fromArray(
 		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
 	letterPos: _Utils_Tuple2(3, 4),
+	markers: _List_fromArray(
+		[
+			{col: 0, dir: $author$project$Main$V, row: 4},
+			{col: 3, dir: $author$project$Main$H, row: 7}
+		]),
 	name: 'R'
 };
 var $author$project$Main$tileT = {
@@ -6289,6 +6366,11 @@ var $author$project$Main$tileT = {
 	grid: _List_fromArray(
 		['..####', '######', '######', '.####.', '.####.', '..###.']),
 	letterPos: _Utils_Tuple2(2, 3),
+	markers: _List_fromArray(
+		[
+			{col: 5, dir: $author$project$Main$V, row: 2},
+			{col: 2, dir: $author$project$Main$H, row: 5}
+		]),
 	name: 'T'
 };
 var $author$project$Main$allSpecs = _List_fromArray(

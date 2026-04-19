@@ -26,12 +26,25 @@ u =
 -- ============================ Tile specs ============================
 
 
+type MarkerDir
+    = H
+    | V
+
+
+type alias Marker =
+    { col : Int
+    , row : Int
+    , dir : MarkerDir
+    }
+
+
 type alias TileSpec =
     { name : String
     , color : String
     , grid : List String
     , bandPath : List ( Float, Float )
     , letterPos : ( Float, Float )
+    , markers : List Marker
     }
 
 
@@ -51,6 +64,10 @@ tileA =
         ]
     , bandPath = [ ( 0, 4 ), ( 3, 4 ), ( 3, 8 ) ]
     , letterPos = ( 3, 4 )
+    , markers =
+        [ { col = 2, row = 0, dir = H }
+        , { col = 7, row = 3, dir = V }
+        ]
     }
 
 
@@ -70,6 +87,10 @@ tileR =
         ]
     , bandPath = [ ( 3, 0 ), ( 3, 4 ), ( 8, 4 ) ]
     , letterPos = ( 3, 4 )
+    , markers =
+        [ { col = 0, row = 4, dir = V }
+        , { col = 3, row = 7, dir = H }
+        ]
     }
 
 
@@ -87,6 +108,10 @@ tileT =
         ]
     , bandPath = [ ( 2, 0 ), ( 2, 3 ), ( 0, 3 ) ]
     , letterPos = ( 2, 3 )
+    , markers =
+        [ { col = 5, row = 2, dir = V }
+        , { col = 2, row = 5, dir = H }
+        ]
     }
 
 
@@ -192,6 +217,34 @@ placedLetterPos p spec =
             rotatePoint p.rotation (specDims spec) spec.letterPos
     in
     ( x + toFloat p.col, y + toFloat p.row )
+
+
+markerPath : Marker -> List ( Float, Float )
+markerPath m =
+    let
+        cx =
+            toFloat m.col + 0.5
+
+        cy =
+            toFloat m.row + 0.5
+    in
+    case m.dir of
+        H ->
+            [ ( cx - 0.5, cy ), ( cx + 0.5, cy ) ]
+
+        V ->
+            [ ( cx, cy - 0.5 ), ( cx, cy + 0.5 ) ]
+
+
+placedMarkerPaths : PlacedTile -> TileSpec -> List (List ( Float, Float ))
+placedMarkerPaths p spec =
+    spec.markers
+        |> List.map
+            (\m ->
+                markerPath m
+                    |> List.map (rotatePoint p.rotation (specDims spec))
+                    |> List.map (\( x, y ) -> ( x + toFloat p.col, y + toFloat p.row ))
+            )
 
 
 
@@ -536,24 +589,24 @@ drawTile onBoard isSelected p spec =
                     (List.map clipRect cells)
                 ]
 
+        pointsAttr path =
+            path
+                |> List.map
+                    (\( x, y ) ->
+                        String.fromFloat (x * toFloat u)
+                            ++ ","
+                            ++ String.fromFloat (y * toFloat u)
+                    )
+                |> String.join " "
+
         bandList =
             let
                 path =
                     placedBandPath p spec
-
-                pts =
-                    path
-                        |> List.map
-                            (\( x, y ) ->
-                                String.fromFloat (x * toFloat u)
-                                    ++ ","
-                                    ++ String.fromFloat (y * toFloat u)
-                            )
-                        |> String.join " "
             in
             if List.length path >= 2 then
                 [ polyline
-                    [ SA.points pts
+                    [ SA.points (pointsAttr path)
                     , SA.stroke "#fff200"
                     , SA.strokeWidth (String.fromInt u)
                     , SA.fill "none"
@@ -567,6 +620,22 @@ drawTile onBoard isSelected p spec =
 
             else
                 []
+
+        markerList =
+            placedMarkerPaths p spec
+                |> List.map
+                    (\path ->
+                        polyline
+                            [ SA.points (pointsAttr path)
+                            , SA.stroke "#fff200"
+                            , SA.strokeWidth (String.fromFloat (toFloat u / 5))
+                            , SA.fill "none"
+                            , SA.strokeLinecap "butt"
+                            , SA.clipPath ("url(#" ++ clipId ++ ")")
+                            , SA.pointerEvents "none"
+                            ]
+                            []
+                    )
 
         selection =
             if isSelected then
@@ -608,7 +677,7 @@ drawTile onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    clipDef :: List.map cellRect cells ++ bandList ++ selection ++ [ letter ]
+    clipDef :: List.map cellRect cells ++ bandList ++ markerList ++ selection ++ [ letter ]
 
 
 mouseDecoder : (Int -> Int -> Msg) -> D.Decoder Msg
