@@ -929,20 +929,38 @@ update msg model =
 
         CaptureRule kind ->
             if List.isEmpty model.placed then
-                model
+                Debug.log ("CaptureRule " ++ kind ++ " ignored: empty board") model
 
             else
-                { model
-                    | rules =
-                        Dict.insert kind
-                            (captureRuleFromPlaced model.placed)
-                            model.rules
-                }
+                let
+                    rule =
+                        captureRuleFromPlaced model.placed
+
+                    newRules =
+                        Dict.insert kind rule model.rules
+
+                    _ =
+                        Debug.log
+                            ("CaptureRule " ++ kind ++ " stored " ++ String.fromInt (List.length rule.children) ++ " children. Keys now:")
+                            (Dict.keys newRules)
+                in
+                { model | rules = newRules }
 
         ShowRule kind ->
+            let
+                _ =
+                    Debug.log
+                        ("ShowRule " ++ kind ++ ". Available keys:")
+                        (Dict.keys model.rules)
+            in
             case Dict.get kind model.rules of
                 Just rule ->
                     let
+                        _ =
+                            Debug.log
+                                ("Rule " ++ kind ++ " has children count:")
+                                (List.length rule.children)
+
                         startId =
                             model.nextId
 
@@ -970,7 +988,7 @@ update msg model =
                     }
 
                 Nothing ->
-                    model
+                    Debug.log ("ShowRule " ++ kind ++ " failed: not in dict") model
 
         ApplyAll ->
             let
@@ -1384,8 +1402,7 @@ viewSidebar model =
             , button [ HE.onClick ApplyAll ] [ text "Apply all" ]
             , button [ HE.onClick ApplySelected ] [ text "Apply selected" ]
             ]
-        , p [ HA.class "status" ]
-            [ text (rulesStatus model.rules) ]
+        , viewRulesStatus model.rules
         , h3 [] [ text "File" ]
         , div [ HA.class "controls" ]
             [ button [ HE.onClick SaveMsg ] [ text "Save" ]
@@ -1404,18 +1421,28 @@ viewSidebar model =
         ]
 
 
-rulesStatus : Dict String SubRule -> String
-rulesStatus rules =
+viewRulesStatus : Dict String SubRule -> Html Msg
+viewRulesStatus rules =
     let
-        tag kind =
-            case Dict.get kind rules of
-                Just rule ->
-                    kind ++ " (" ++ String.fromInt (List.length rule.children) ++ ")"
-
-                Nothing ->
-                    kind ++ " (—)"
+        row kind =
+            p [ HA.class "status" ]
+                [ text (kind ++ ": " ++ ruleSummary rules kind) ]
     in
-    String.join "   " [ tag "A", tag "R", tag "T" ]
+    div []
+        [ row "A"
+        , row "R"
+        , row "T"
+        ]
+
+
+ruleSummary : Dict String SubRule -> String -> String
+ruleSummary rules kind =
+    case Dict.get kind rules of
+        Just rule ->
+            String.fromInt (List.length rule.children) ++ " children"
+
+        Nothing ->
+            "—"
 
 
 paletteEntry : Model -> TileSpec -> Html Msg

@@ -6389,6 +6389,7 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
+var $elm$core$Debug$log = _Debug_log;
 var $author$project$Main$maxU = 60;
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
@@ -7062,20 +7063,29 @@ var $author$project$Main$update = F2(
 						}
 					case 'CaptureRule':
 						var kind = msg.a;
-						return $elm$core$List$isEmpty(model.placed) ? model : _Utils_update(
-							model,
-							{
-								rules: A3(
-									$elm$core$Dict$insert,
-									kind,
-									$author$project$Main$captureRuleFromPlaced(model.placed),
-									model.rules)
-							});
+						if ($elm$core$List$isEmpty(model.placed)) {
+							return A2($elm$core$Debug$log, 'CaptureRule ' + (kind + ' ignored: empty board'), model);
+						} else {
+							var rule = $author$project$Main$captureRuleFromPlaced(model.placed);
+							var newRules = A3($elm$core$Dict$insert, kind, rule, model.rules);
+							var _v8 = A2(
+								$elm$core$Debug$log,
+								'CaptureRule ' + (kind + (' stored ' + ($elm$core$String$fromInt(
+									$elm$core$List$length(rule.children)) + ' children. Keys now:'))),
+								$elm$core$Dict$keys(newRules));
+							return _Utils_update(
+								model,
+								{rules: newRules});
+						}
 					case 'ShowRule':
 						var kind = msg.a;
-						var _v8 = A2($elm$core$Dict$get, kind, model.rules);
-						if (_v8.$ === 'Just') {
-							var rule = _v8.a;
+						var _v9 = A2(
+							$elm$core$Debug$log,
+							'ShowRule ' + (kind + '. Available keys:'),
+							$elm$core$Dict$keys(model.rules));
+						var _v10 = A2($elm$core$Dict$get, kind, model.rules);
+						if (_v10.$ === 'Just') {
+							var rule = _v10.a;
 							var startId = model.nextId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
@@ -7084,6 +7094,10 @@ var $author$project$Main$update = F2(
 										return {col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
 									}),
 								rule.children);
+							var _v11 = A2(
+								$elm$core$Debug$log,
+								'Rule ' + (kind + ' has children count:'),
+								$elm$core$List$length(rule.children));
 							return _Utils_update(
 								model,
 								{
@@ -7096,34 +7110,34 @@ var $author$project$Main$update = F2(
 									selectedPlaced: $elm$core$Maybe$Nothing
 								});
 						} else {
-							return model;
+							return A2($elm$core$Debug$log, 'ShowRule ' + (kind + ' failed: not in dict'), model);
 						}
 					case 'ApplyAll':
 						var newTiles = A2(
 							$elm$core$List$concatMap,
 							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var _v9 = $author$project$Main$renumber(newTiles);
-						var withIds = _v9.a;
-						var count = _v9.b;
+						var _v12 = $author$project$Main$renumber(newTiles);
+						var withIds = _v12.a;
+						var count = _v12.b;
 						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 					default:
-						var _v10 = model.selectedPlaced;
-						if (_v10.$ === 'Nothing') {
+						var _v13 = model.selectedPlaced;
+						if (_v13.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v10.a;
-							var _v11 = $elm$core$List$head(
+							var sid = _v13.a;
+							var _v14 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v11.$ === 'Just') {
-								var tile = _v11.a;
+							if (_v14.$ === 'Just') {
+								var tile = _v14.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7131,10 +7145,10 @@ var $author$project$Main$update = F2(
 									},
 									model.placed);
 								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v12 = $author$project$Main$renumber(
+								var _v15 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v12.a;
-								var count = _v12.b;
+								var withIds = _v15.a;
+								var count = _v15.b;
 								return _Utils_update(
 									model,
 									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
@@ -7764,28 +7778,42 @@ var $author$project$Main$paletteEntry = F2(
 						spec))
 				]));
 	});
-var $author$project$Main$rulesStatus = function (rules) {
-	var tag = function (kind) {
+var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
+var $author$project$Main$ruleSummary = F2(
+	function (rules, kind) {
 		var _v0 = A2($elm$core$Dict$get, kind, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
-			return kind + (' (' + ($elm$core$String$fromInt(
-				$elm$core$List$length(rule.children)) + ')'));
+			return $elm$core$String$fromInt(
+				$elm$core$List$length(rule.children)) + ' children';
 		} else {
-			return kind + ' (—)';
+			return '—';
 		}
+	});
+var $author$project$Main$viewRulesStatus = function (rules) {
+	var row = function (kind) {
+		return A2(
+			$elm$html$Html$p,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class('status')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(
+					kind + (': ' + A2($author$project$Main$ruleSummary, rules, kind)))
+				]));
 	};
 	return A2(
-		$elm$core$String$join,
-		'   ',
+		$elm$html$Html$div,
+		_List_Nil,
 		_List_fromArray(
 			[
-				tag('A'),
-				tag('R'),
-				tag('T')
+				row('A'),
+				row('R'),
+				row('T')
 			]));
 };
-var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $author$project$Main$viewSidebar = function (model) {
 	return A2(
 		$elm$html$Html$div,
@@ -8006,17 +8034,7 @@ var $author$project$Main$viewSidebar = function (model) {
 								$elm$html$Html$text('Apply selected')
 							]))
 					])),
-				A2(
-				$elm$html$Html$p,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('status')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text(
-						$author$project$Main$rulesStatus(model.rules))
-					])),
+				$author$project$Main$viewRulesStatus(model.rules),
 				A2(
 				$elm$html$Html$h3,
 				_List_Nil,
