@@ -1110,7 +1110,16 @@ baseUpdate msg model =
                     }
 
                 Nothing ->
-                    Debug.log ("ShowRule " ++ kind ++ " failed: not in dict") model
+                    let
+                        _ =
+                            Debug.log ("ShowRule " ++ kind ++ " has no rule; clearing board") ()
+                    in
+                    { model
+                        | placed = []
+                        , selectedPlaced = Nothing
+                        , selectedKind = Nothing
+                        , drag = Nothing
+                    }
 
         ApplyAll ->
             let

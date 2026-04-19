@@ -7215,34 +7215,37 @@ var $author$project$Main$baseUpdate = F2(
 									selectedPlaced: $elm$core$Maybe$Nothing
 								});
 						} else {
-							return A2($elm$core$Debug$log, 'ShowRule ' + (kind + ' failed: not in dict'), model);
+							var _v17 = A2($elm$core$Debug$log, 'ShowRule ' + (kind + ' has no rule; clearing board'), _Utils_Tuple0);
+							return _Utils_update(
+								model,
+								{drag: $elm$core$Maybe$Nothing, placed: _List_Nil, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 						}
 					case 'ApplyAll':
 						var newTiles = A2(
 							$elm$core$List$concatMap,
 							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var _v17 = $author$project$Main$renumber(newTiles);
-						var withIds = _v17.a;
-						var count = _v17.b;
+						var _v18 = $author$project$Main$renumber(newTiles);
+						var withIds = _v18.a;
+						var count = _v18.b;
 						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 					default:
-						var _v18 = model.selectedPlaced;
-						if (_v18.$ === 'Nothing') {
+						var _v19 = model.selectedPlaced;
+						if (_v19.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v18.a;
-							var _v19 = $elm$core$List$head(
+							var sid = _v19.a;
+							var _v20 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v19.$ === 'Just') {
-								var tile = _v19.a;
+							if (_v20.$ === 'Just') {
+								var tile = _v20.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7250,10 +7253,10 @@ var $author$project$Main$baseUpdate = F2(
 									},
 									model.placed);
 								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v20 = $author$project$Main$renumber(
+								var _v21 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v20.a;
-								var count = _v20.b;
+								var withIds = _v21.a;
+								var count = _v21.b;
 								return _Utils_update(
 									model,
 									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
