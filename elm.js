@@ -6275,19 +6275,20 @@ var $author$project$Main$tileR = {
 	color: '#f58686',
 	grid: _List_fromArray(
 		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
-	letterPos: _Utils_Tuple2(5, 4),
+	letterPos: _Utils_Tuple2(3, 4),
 	name: 'R'
 };
 var $author$project$Main$tileT = {
 	bandPath: _List_fromArray(
 		[
-			_Utils_Tuple2(0, 2),
-			_Utils_Tuple2(6, 2)
+			_Utils_Tuple2(2, 0),
+			_Utils_Tuple2(2, 3),
+			_Utils_Tuple2(0, 3)
 		]),
 	color: '#99d7a0',
 	grid: _List_fromArray(
 		['..####', '######', '######', '.####.', '.####.', '..###.']),
-	letterPos: _Utils_Tuple2(3, 2),
+	letterPos: _Utils_Tuple2(2, 3),
 	name: 'T'
 };
 var $author$project$Main$allSpecs = _List_fromArray(

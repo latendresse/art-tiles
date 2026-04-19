@@ -69,7 +69,7 @@ tileR =
         , "...###.."
         ]
     , bandPath = [ ( 3, 0 ), ( 3, 4 ), ( 8, 4 ) ]
-    , letterPos = ( 5, 4 )
+    , letterPos = ( 3, 4 )
     }
 
 
@@ -85,8 +85,8 @@ tileT =
         , ".####."
         , "..###."
         ]
-    , bandPath = [ ( 0, 2 ), ( 6, 2 ) ]
-    , letterPos = ( 3, 2 )
+    , bandPath = [ ( 2, 0 ), ( 2, 3 ), ( 0, 3 ) ]
+    , letterPos = ( 2, 3 )
     }
 
 
