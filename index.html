@@ -9,8 +9,20 @@
     <div id="app"></div>
     <script src="elm.js"></script>
     <script>
-        Elm.Main.init({
-            node: document.getElementById('app')
+        var STORAGE_KEY = 'art-tiles-state';
+        var saved = localStorage.getItem(STORAGE_KEY) || '';
+
+        var app = Elm.Main.init({
+            node: document.getElementById('app'),
+            flags: saved
+        });
+
+        app.ports.persistState.subscribe(function (jsonStr) {
+            try {
+                localStorage.setItem(STORAGE_KEY, jsonStr);
+            } catch (e) {
+                console.warn('Could not persist state:', e);
+            }
         });
     </script>
 </body>

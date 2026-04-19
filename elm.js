@@ -5424,60 +5424,34 @@ var $author$project$Main$Resize = F2(
 	function (a, b) {
 		return {$: 'Resize', a: a, b: b};
 	});
-var $author$project$Main$defaultU = 22;
+var $author$project$Main$SubRule = function (children) {
+	return {children: children};
+};
+var $author$project$Main$ChildTile = F4(
+	function (kind, col, row, rotation) {
+		return {col: col, kind: kind, rotation: rotation, row: row};
+	});
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $elm$json$Json$Decode$int = _Json_decodeInt;
+var $elm$json$Json$Decode$map4 = _Json_map4;
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Main$decodeChildTile = A5(
+	$elm$json$Json$Decode$map4,
+	$author$project$Main$ChildTile,
+	A2($elm$json$Json$Decode$field, 'kind', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'col', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'row', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'rotation', $elm$json$Json$Decode$int));
+var $elm$json$Json$Decode$list = _Json_decodeList;
+var $author$project$Main$decodeSubRule = A2(
+	$elm$json$Json$Decode$map,
+	$author$project$Main$SubRule,
+	A2(
+		$elm$json$Json$Decode$field,
+		'children',
+		$elm$json$Json$Decode$list($author$project$Main$decodeChildTile)));
 var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
 var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
-var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
-var $elm$core$Basics$round = _Basics_round;
-var $author$project$Main$init = function (_v0) {
-	return _Utils_Tuple2(
-		{drag: $elm$core$Maybe$Nothing, factor: 2, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: $elm$core$Dict$empty, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
-		A2(
-			$elm$core$Task$perform,
-			function (v) {
-				return A2(
-					$author$project$Main$Resize,
-					$elm$core$Basics$round(v.viewport.width),
-					$elm$core$Basics$round(v.viewport.height));
-			},
-			$elm$browser$Browser$Dom$getViewport));
-};
-var $author$project$Main$DragMouseMove = F2(
-	function (a, b) {
-		return {$: 'DragMouseMove', a: a, b: b};
-	});
-var $author$project$Main$MouseUp = {$: 'MouseUp'};
-var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$json$Json$Decode$field = _Json_decodeField;
-var $elm$json$Json$Decode$float = _Json_decodeFloat;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
-var $elm$browser$Browser$Events$Document = {$: 'Document'};
-var $elm$browser$Browser$Events$MySub = F3(
-	function (a, b, c) {
-		return {$: 'MySub', a: a, b: b, c: c};
-	});
-var $elm$browser$Browser$Events$State = F2(
-	function (subs, pids) {
-		return {pids: pids, subs: subs};
-	});
-var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
-	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
-var $elm$browser$Browser$Events$nodeToKey = function (node) {
-	if (node.$ === 'Document') {
-		return 'd_';
-	} else {
-		return 'w_';
-	}
-};
-var $elm$browser$Browser$Events$addKey = function (sub) {
-	var node = sub.a;
-	var name = sub.b;
-	return _Utils_Tuple2(
-		_Utils_ap(
-			$elm$browser$Browser$Events$nodeToKey(node),
-			name),
-		sub);
-};
 var $elm$core$Dict$Black = {$: 'Black'};
 var $elm$core$Dict$RBNode_elm_builtin = F5(
 	function (a, b, c, d, e) {
@@ -5598,6 +5572,98 @@ var $elm$core$Dict$fromList = function (assocs) {
 			}),
 		$elm$core$Dict$empty,
 		assocs);
+};
+var $elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
+var $elm$json$Json$Decode$dict = function (decoder) {
+	return A2(
+		$elm$json$Json$Decode$map,
+		$elm$core$Dict$fromList,
+		$elm$json$Json$Decode$keyValuePairs(decoder));
+};
+var $author$project$Main$decodeRules = $elm$json$Json$Decode$dict($author$project$Main$decodeSubRule);
+var $elm$json$Json$Decode$decodeString = _Json_runOnString;
+var $elm$json$Json$Decode$oneOf = _Json_oneOf;
+var $elm$core$Tuple$pair = F2(
+	function (a, b) {
+		return _Utils_Tuple2(a, b);
+	});
+var $author$project$Main$decodePersistedState = function (raw) {
+	var decoder = A3(
+		$elm$json$Json$Decode$map2,
+		$elm$core$Tuple$pair,
+		$elm$json$Json$Decode$oneOf(
+			_List_fromArray(
+				[
+					A2($elm$json$Json$Decode$field, 'rules', $author$project$Main$decodeRules),
+					$elm$json$Json$Decode$succeed($elm$core$Dict$empty)
+				])),
+		$elm$json$Json$Decode$oneOf(
+			_List_fromArray(
+				[
+					A2($elm$json$Json$Decode$field, 'factor', $elm$json$Json$Decode$int),
+					$elm$json$Json$Decode$succeed(2)
+				])));
+	var _v0 = A2($elm$json$Json$Decode$decodeString, decoder, raw);
+	if (_v0.$ === 'Ok') {
+		var pair = _v0.a;
+		return pair;
+	} else {
+		return _Utils_Tuple2($elm$core$Dict$empty, 2);
+	}
+};
+var $author$project$Main$defaultU = 22;
+var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
+var $elm$core$Basics$round = _Basics_round;
+var $author$project$Main$init = function (flags) {
+	var _v0 = $author$project$Main$decodePersistedState(flags);
+	var rules = _v0.a;
+	var factor = _v0.b;
+	return _Utils_Tuple2(
+		{drag: $elm$core$Maybe$Nothing, factor: factor, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
+		A2(
+			$elm$core$Task$perform,
+			function (v) {
+				return A2(
+					$author$project$Main$Resize,
+					$elm$core$Basics$round(v.viewport.width),
+					$elm$core$Basics$round(v.viewport.height));
+			},
+			$elm$browser$Browser$Dom$getViewport));
+};
+var $author$project$Main$DragMouseMove = F2(
+	function (a, b) {
+		return {$: 'DragMouseMove', a: a, b: b};
+	});
+var $author$project$Main$MouseUp = {$: 'MouseUp'};
+var $elm$core$Platform$Sub$batch = _Platform_batch;
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $elm$browser$Browser$Events$Document = {$: 'Document'};
+var $elm$browser$Browser$Events$MySub = F3(
+	function (a, b, c) {
+		return {$: 'MySub', a: a, b: b, c: c};
+	});
+var $elm$browser$Browser$Events$State = F2(
+	function (subs, pids) {
+		return {pids: pids, subs: subs};
+	});
+var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
+	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
+var $elm$browser$Browser$Events$nodeToKey = function (node) {
+	if (node.$ === 'Document') {
+		return 'd_';
+	} else {
+		return 'w_';
+	}
+};
+var $elm$browser$Browser$Events$addKey = function (sub) {
+	var node = sub.a;
+	var name = sub.b;
+	return _Utils_Tuple2(
+		_Utils_ap(
+			$elm$browser$Browser$Events$nodeToKey(node),
+			name),
+		sub);
 };
 var $elm$core$Process$kill = _Scheduler_kill;
 var $elm$core$Dict$foldl = F3(
@@ -5852,7 +5918,6 @@ var $elm$browser$Browser$Events$on = F3(
 var $elm$browser$Browser$Events$onMouseMove = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'mousemove');
 var $elm$browser$Browser$Events$onMouseUp = A2($elm$browser$Browser$Events$on, $elm$browser$Browser$Events$Document, 'mouseup');
 var $elm$browser$Browser$Events$Window = {$: 'Window'};
-var $elm$json$Json$Decode$int = _Json_decodeInt;
 var $elm$browser$Browser$Events$onResize = function (func) {
 	return A3(
 		$elm$browser$Browser$Events$on,
@@ -6214,49 +6279,15 @@ var $elm$core$List$concatMap = F2(
 		return $elm$core$List$concat(
 			A2($elm$core$List$map, f, list));
 	});
-var $elm$json$Json$Decode$decodeString = _Json_runOnString;
 var $author$project$Main$SavedTiling = F3(
 	function (tiles, rules, factor) {
 		return {factor: factor, rules: rules, tiles: tiles};
 	});
-var $author$project$Main$SubRule = function (children) {
-	return {children: children};
-};
-var $author$project$Main$ChildTile = F4(
-	function (kind, col, row, rotation) {
-		return {col: col, kind: kind, rotation: rotation, row: row};
-	});
-var $elm$json$Json$Decode$map4 = _Json_map4;
-var $elm$json$Json$Decode$string = _Json_decodeString;
-var $author$project$Main$decodeChildTile = A5(
-	$elm$json$Json$Decode$map4,
-	$author$project$Main$ChildTile,
-	A2($elm$json$Json$Decode$field, 'kind', $elm$json$Json$Decode$string),
-	A2($elm$json$Json$Decode$field, 'col', $elm$json$Json$Decode$int),
-	A2($elm$json$Json$Decode$field, 'row', $elm$json$Json$Decode$int),
-	A2($elm$json$Json$Decode$field, 'rotation', $elm$json$Json$Decode$int));
-var $elm$json$Json$Decode$list = _Json_decodeList;
-var $author$project$Main$decodeSubRule = A2(
-	$elm$json$Json$Decode$map,
-	$author$project$Main$SubRule,
-	A2(
-		$elm$json$Json$Decode$field,
-		'children',
-		$elm$json$Json$Decode$list($author$project$Main$decodeChildTile)));
-var $elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
-var $elm$json$Json$Decode$dict = function (decoder) {
-	return A2(
-		$elm$json$Json$Decode$map,
-		$elm$core$Dict$fromList,
-		$elm$json$Json$Decode$keyValuePairs(decoder));
-};
-var $author$project$Main$decodeRules = $elm$json$Json$Decode$dict($author$project$Main$decodeSubRule);
 var $author$project$Main$SavedTile = F5(
 	function (kind, col, row, rotation, scale) {
 		return {col: col, kind: kind, rotation: rotation, row: row, scale: scale};
 	});
 var $elm$json$Json$Decode$map5 = _Json_map5;
-var $elm$json$Json$Decode$oneOf = _Json_oneOf;
 var $author$project$Main$decodeSavedTile = A6(
 	$elm$json$Json$Decode$map5,
 	$author$project$Main$SavedTile,
@@ -6821,7 +6852,7 @@ var $author$project$Main$wouldOverlap = F2(
 				$author$project$Main$tileCells(tile)));
 	});
 var $author$project$Main$zoomStep = 2;
-var $author$project$Main$update = F2(
+var $author$project$Main$baseUpdate = F2(
 	function (msg, model) {
 		return _Utils_Tuple2(
 			function () {
@@ -7185,6 +7216,36 @@ var $author$project$Main$update = F2(
 						return $elm$core$Platform$Cmd$none;
 				}
 			}());
+	});
+var $author$project$Main$encodePersistedState = F2(
+	function (rules, factor) {
+		return A2(
+			$elm$json$Json$Encode$encode,
+			0,
+			$elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'rules',
+						$author$project$Main$encodeRules(rules)),
+						_Utils_Tuple2(
+						'factor',
+						$elm$json$Json$Encode$int(factor))
+					])));
+	});
+var $author$project$Main$persistState = _Platform_outgoingPort('persistState', $elm$json$Json$Encode$string);
+var $author$project$Main$update = F2(
+	function (msg, model) {
+		var _v0 = A2($author$project$Main$baseUpdate, msg, model);
+		var newModel = _v0.a;
+		var baseCmd = _v0.b;
+		var persistCmd = ((!_Utils_eq(newModel.rules, model.rules)) || (!_Utils_eq(newModel.factor, model.factor))) ? $author$project$Main$persistState(
+			A2($author$project$Main$encodePersistedState, newModel.rules, newModel.factor)) : $elm$core$Platform$Cmd$none;
+		return _Utils_Tuple2(
+			newModel,
+			$elm$core$Platform$Cmd$batch(
+				_List_fromArray(
+					[baseCmd, persistCmd])));
 	});
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
@@ -8109,5 +8170,4 @@ var $author$project$Main$view = function (model) {
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subs, update: $author$project$Main$update, view: $author$project$Main$view});
-_Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$string)(0)}});}(this));

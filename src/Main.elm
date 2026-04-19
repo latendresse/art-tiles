@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Browser.Dom
@@ -42,6 +42,11 @@ maxU =
 zoomStep : Int
 zoomStep =
     2
+
+
+{-| JS side writes the string to localStorage under a well-known key.
+-}
+port persistState : String -> Cmd msg
 
 
 
@@ -630,8 +635,42 @@ type alias Model =
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+type alias Flags =
+    String
+
+
+encodePersistedState : Dict String SubRule -> Int -> String
+encodePersistedState rules factor =
+    E.encode 0
+        (E.object
+            [ ( "rules", encodeRules rules )
+            , ( "factor", E.int factor )
+            ]
+        )
+
+
+decodePersistedState : String -> ( Dict String SubRule, Int )
+decodePersistedState raw =
+    let
+        decoder =
+            D.map2 Tuple.pair
+                (D.oneOf [ D.field "rules" decodeRules, D.succeed Dict.empty ])
+                (D.oneOf [ D.field "factor" D.int, D.succeed 2 ])
+    in
+    case D.decodeString decoder raw of
+        Ok pair ->
+            pair
+
+        Err _ ->
+            ( Dict.empty, 2 )
+
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    let
+        ( rules, factor ) =
+            decodePersistedState flags
+    in
     ( { placed = []
       , nextId = 0
       , selectedKind = Nothing
@@ -643,8 +682,8 @@ init _ =
       , u = defaultU
       , windowW = 1200
       , windowH = 800
-      , rules = Dict.empty
-      , factor = 2
+      , rules = rules
+      , factor = factor
       }
     , Task.perform
         (\v -> Resize (round v.viewport.width) (round v.viewport.height))
@@ -693,6 +732,22 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        ( newModel, baseCmd ) =
+            baseUpdate msg model
+
+        persistCmd =
+            if newModel.rules /= model.rules || newModel.factor /= model.factor then
+                persistState (encodePersistedState newModel.rules newModel.factor)
+
+            else
+                Cmd.none
+    in
+    ( newModel, Cmd.batch [ baseCmd, persistCmd ] )
+
+
+baseUpdate : Msg -> Model -> ( Model, Cmd Msg )
+baseUpdate msg model =
     ( case msg of
         SelectKind n ->
             { model
@@ -1506,7 +1561,7 @@ subs model =
         ]
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { init = init
