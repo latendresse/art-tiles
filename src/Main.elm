@@ -668,14 +668,8 @@ decodePersistedState raw =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        _ =
-            Debug.log "init: raw flags string from localStorage:" flags
-
         ( rules, factor ) =
             decodePersistedState flags
-
-        _ =
-            Debug.log "init: decoded rules keys:" (Dict.keys rules)
     in
     ( { placed = []
       , nextId = 0
@@ -744,17 +738,7 @@ update msg model =
 
         persistCmd =
             if newModel.rules /= model.rules || newModel.factor /= model.factor then
-                let
-                    payload =
-                        encodePersistedState newModel.rules newModel.factor
-
-                    _ =
-                        Debug.log "Persisting to localStorage keys:" (Dict.keys newModel.rules)
-
-                    _ =
-                        Debug.log "Persisting JSON:" payload
-                in
-                persistState payload
+                persistState (encodePersistedState newModel.rules newModel.factor)
 
             else
                 Cmd.none
@@ -762,37 +746,8 @@ update msg model =
     ( newModel, Cmd.batch [ baseCmd, persistCmd ] )
 
 
-msgLabel : Msg -> String
-msgLabel msg =
-    case msg of
-        SelectKind _ -> "SelectKind"
-        BoardMouseDown _ _ _ _ -> "BoardMouseDown"
-        TileMouseDown _ _ _ -> "TileMouseDown"
-        DragMouseMove _ _ -> "DragMouseMove"
-        MouseUp -> "MouseUp"
-        RotateMsg -> "RotateMsg"
-        DeleteMsg -> "DeleteMsg"
-        ClearMsg -> "ClearMsg"
-        Resize _ _ -> "Resize"
-        ZoomIn -> "ZoomIn"
-        ZoomOut -> "ZoomOut"
-        ResetView -> "ResetView"
-        SaveMsg -> "SaveMsg"
-        SaveAtTime _ _ -> "SaveAtTime"
-        LoadMsg -> "LoadMsg"
-        LoadFileSelected _ -> "LoadFileSelected"
-        LoadFileLoaded _ -> "LoadFileLoaded"
-        CaptureRule k -> "CaptureRule " ++ k
-        ShowRule k -> "ShowRule " ++ k
-        ApplyAll -> "ApplyAll"
-        ApplySelected -> "ApplySelected"
-
-
 baseUpdate : Msg -> Model -> ( Model, Cmd Msg )
 baseUpdate msg model =
-    let
-        _ = Debug.log "[MSG]" (msgLabel msg)
-    in
     ( case msg of
         SelectKind n ->
             { model
@@ -1018,15 +973,6 @@ baseUpdate msg model =
                         -- memory that isn't in the file is preserved.
                         mergedRules =
                             Dict.union saved.rules model.rules
-
-                        _ =
-                            Debug.log "LoadFileLoaded rules in file:" (Dict.keys saved.rules)
-
-                        _ =
-                            Debug.log "LoadFileLoaded rules in memory before merge:" (Dict.keys model.rules)
-
-                        _ =
-                            Debug.log "LoadFileLoaded rules after merge:" (Dict.keys mergedRules)
                     in
                     { model
                         | placed = newTiles
@@ -1044,45 +990,21 @@ baseUpdate msg model =
                     model
 
         CaptureRule kind ->
-            let
-                _ =
-                    Debug.log
-                        ("CaptureRule " ++ kind ++ " — current rules keys BEFORE insert:")
-                        (Dict.keys model.rules)
-            in
             if List.isEmpty model.placed then
-                Debug.log ("CaptureRule " ++ kind ++ " ignored: empty board") model
+                model
 
             else
-                let
-                    rule =
-                        captureRuleFromPlaced model.placed
-
-                    newRules =
-                        Dict.insert kind rule model.rules
-
-                    _ =
-                        Debug.log
-                            ("CaptureRule " ++ kind ++ " stored " ++ String.fromInt (List.length rule.children) ++ " children. Keys AFTER insert:")
-                            (Dict.keys newRules)
-                in
-                { model | rules = newRules }
+                { model
+                    | rules =
+                        Dict.insert kind
+                            (captureRuleFromPlaced model.placed)
+                            model.rules
+                }
 
         ShowRule kind ->
-            let
-                _ =
-                    Debug.log
-                        ("ShowRule " ++ kind ++ ". Available keys:")
-                        (Dict.keys model.rules)
-            in
             case Dict.get kind model.rules of
                 Just rule ->
                     let
-                        _ =
-                            Debug.log
-                                ("Rule " ++ kind ++ " has children count:")
-                                (List.length rule.children)
-
                         startId =
                             model.nextId
 
@@ -1110,10 +1032,6 @@ baseUpdate msg model =
                     }
 
                 Nothing ->
-                    let
-                        _ =
-                            Debug.log ("ShowRule " ++ kind ++ " has no rule; clearing board") ()
-                    in
                     { model
                         | placed = []
                         , selectedPlaced = Nothing
