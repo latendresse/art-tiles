@@ -7,7 +7,8 @@ import Html exposing (Html, button, div, h3, p, text)
 import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
-import Svg exposing (Svg, defs, line, polyline, rect, svg, text_)
+import Set exposing (Set)
+import Svg exposing (Svg, defs, g, line, polyline, rect, svg, text_)
 import Svg.Attributes as SA
 import Svg.Events as SE
 import Task
@@ -17,9 +18,24 @@ import Task
 -- ============================ Config ============================
 
 
-u : Int
-u =
+defaultU : Int
+defaultU =
     22
+
+
+minU : Int
+minU =
+    8
+
+
+maxU : Int
+maxU =
+    60
+
+
+zoomStep : Int
+zoomStep =
+    2
 
 
 
@@ -177,9 +193,6 @@ specCellsRotated k spec =
     parseGrid spec.grid |> List.map (rotateCell k (specDims spec))
 
 
-{-| Rotate a point (x, y) k quarter-turns clockwise within an H x W grid
-whose coordinates run 0..H, 0..W (continuous, not cell-indexed).
--}
 rotatePoint : Int -> ( Int, Int ) -> ( Float, Float ) -> ( Float, Float )
 rotatePoint k ( h, w ) ( x, y ) =
     let
@@ -248,6 +261,42 @@ placedMarkerPaths p spec =
 
 
 
+-- ============================ Overlap ============================
+
+
+tileCells : PlacedTile -> Set ( Int, Int )
+tileCells p =
+    case lookupSpec p.kind of
+        Just spec ->
+            specCellsRotated p.rotation spec
+                |> List.map (\( c, r ) -> ( c + p.col, r + p.row ))
+                |> Set.fromList
+
+        Nothing ->
+            Set.empty
+
+
+allOccupiedCells : Maybe Int -> List PlacedTile -> Set ( Int, Int )
+allOccupiedCells excludeId placed =
+    placed
+        |> List.filter
+            (\p ->
+                case excludeId of
+                    Just eid ->
+                        p.id /= eid
+
+                    Nothing ->
+                        True
+            )
+        |> List.foldl (\p acc -> Set.union acc (tileCells p)) Set.empty
+
+
+wouldOverlap : Set ( Int, Int ) -> PlacedTile -> Bool
+wouldOverlap occupied tile =
+    not (Set.isEmpty (Set.intersect occupied (tileCells tile)))
+
+
+
 -- ============================ Model ============================
 
 
@@ -260,7 +309,7 @@ type alias PlacedTile =
     }
 
 
-type alias Drag =
+type alias TileDrag =
     { id : Int
     , origCol : Int
     , origRow : Int
@@ -269,13 +318,29 @@ type alias Drag =
     }
 
 
+type alias PanDragState =
+    { origPanX : Float
+    , origPanY : Float
+    , startX : Float
+    , startY : Float
+    }
+
+
+type DragState
+    = DraggingTile TileDrag
+    | DraggingPan PanDragState
+
+
 type alias Model =
     { placed : List PlacedTile
     , nextId : Int
     , selectedKind : Maybe String
     , selectedPlaced : Maybe Int
     , rotation : Int
-    , drag : Maybe Drag
+    , drag : Maybe DragState
+    , panX : Float
+    , panY : Float
+    , u : Int
     , windowW : Int
     , windowH : Int
     }
@@ -289,6 +354,9 @@ init _ =
       , selectedPlaced = Nothing
       , rotation = 0
       , drag = Nothing
+      , panX = 0
+      , panY = 0
+      , u = defaultU
       , windowW = 1200
       , windowH = 800
       }
@@ -298,12 +366,10 @@ init _ =
     )
 
 
-{-| Grid cols × rows that fit in the viewport, with sidebar taking 1/5.
--}
 boardDims : Model -> ( Int, Int )
 boardDims model =
-    ( max 10 ((model.windowW * 4 // 5) // u)
-    , max 10 (model.windowH // u)
+    ( max 10 ((model.windowW * 4 // 5) // model.u)
+    , max 10 (model.windowH // model.u)
     )
 
 
@@ -313,14 +379,17 @@ boardDims model =
 
 type Msg
     = SelectKind String
-    | BoardMouseDown Int Int
-    | TileMouseDown Int Int Int Float Float
+    | BoardMouseDown Float Float Float Float
+    | TileMouseDown Int Float Float
     | DragMouseMove Float Float
     | MouseUp
     | RotateMsg
     | DeleteMsg
     | ClearMsg
     | Resize Int Int
+    | ZoomIn
+    | ZoomOut
+    | ResetView
 
 
 
@@ -336,38 +405,65 @@ update msg model =
                 , selectedPlaced = Nothing
             }
 
-        BoardMouseDown c r ->
+        BoardMouseDown offX offY clX clY ->
             case model.selectedKind of
                 Just n ->
-                    { model
-                        | placed =
-                            model.placed
-                                ++ [ { id = model.nextId
-                                     , kind = n
-                                     , col = c
-                                     , row = r
-                                     , rotation = model.rotation
-                                     }
-                                   ]
-                        , nextId = model.nextId + 1
-                        , selectedPlaced = Just model.nextId
-                    }
+                    let
+                        worldCol =
+                            floor (offX / toFloat model.u + model.panX)
+
+                        worldRow =
+                            floor (offY / toFloat model.u + model.panY)
+
+                        newTile =
+                            { id = model.nextId
+                            , kind = n
+                            , col = worldCol
+                            , row = worldRow
+                            , rotation = model.rotation
+                            }
+
+                        occupied =
+                            allOccupiedCells Nothing model.placed
+                    in
+                    if wouldOverlap occupied newTile then
+                        model
+
+                    else
+                        { model
+                            | placed = model.placed ++ [ newTile ]
+                            , nextId = model.nextId + 1
+                            , selectedPlaced = Just model.nextId
+                        }
 
                 Nothing ->
-                    { model | selectedPlaced = Nothing }
+                    { model
+                        | drag =
+                            Just
+                                (DraggingPan
+                                    { origPanX = model.panX
+                                    , origPanY = model.panY
+                                    , startX = clX
+                                    , startY = clY
+                                    }
+                                )
+                        , selectedPlaced = Nothing
+                    }
 
-        TileMouseDown id c r cx cy ->
+        TileMouseDown id cx cy ->
             case model.placed |> List.filter (\p -> p.id == id) |> List.head of
                 Just p ->
                     { model
                         | drag =
                             Just
-                                { id = id
-                                , origCol = p.col
-                                , origRow = p.row
-                                , startX = cx
-                                , startY = cy
-                                }
+                                (DraggingTile
+                                    { id = id
+                                    , origCol = p.col
+                                    , origRow = p.row
+                                    , startX = cx
+                                    , startY = cy
+                                    }
+                                )
                         , selectedPlaced = Just id
                         , selectedKind = Nothing
                     }
@@ -377,25 +473,60 @@ update msg model =
 
         DragMouseMove cx cy ->
             case model.drag of
-                Just d ->
+                Just (DraggingTile state) ->
                     let
                         dCol =
-                            round ((cx - d.startX) / toFloat u)
+                            round ((cx - state.startX) / toFloat model.u)
 
                         dRow =
-                            round ((cy - d.startY) / toFloat u)
+                            round ((cy - state.startY) / toFloat model.u)
+
+                        newCol =
+                            state.origCol + dCol
+
+                        newRow =
+                            state.origRow + dRow
+                    in
+                    case model.placed |> List.filter (\p -> p.id == state.id) |> List.head of
+                        Just p ->
+                            let
+                                proposed =
+                                    { p | col = newCol, row = newRow }
+
+                                occupied =
+                                    allOccupiedCells (Just state.id) model.placed
+                            in
+                            if wouldOverlap occupied proposed then
+                                model
+
+                            else
+                                { model
+                                    | placed =
+                                        model.placed
+                                            |> List.map
+                                                (\t ->
+                                                    if t.id == state.id then
+                                                        proposed
+
+                                                    else
+                                                        t
+                                                )
+                                }
+
+                        Nothing ->
+                            model
+
+                Just (DraggingPan state) ->
+                    let
+                        dx =
+                            (cx - state.startX) / toFloat model.u
+
+                        dy =
+                            (cy - state.startY) / toFloat model.u
                     in
                     { model
-                        | placed =
-                            model.placed
-                                |> List.map
-                                    (\p ->
-                                        if p.id == d.id then
-                                            { p | col = d.origCol + dCol, row = d.origRow + dRow }
-
-                                        else
-                                            p
-                                    )
+                        | panX = state.origPanX - dx
+                        , panY = state.origPanY - dy
                     }
 
                 Nothing ->
@@ -413,7 +544,19 @@ update msg model =
                                 |> List.map
                                     (\p ->
                                         if p.id == id then
-                                            { p | rotation = modBy 4 (p.rotation + 1) }
+                                            -- only rotate if the rotation doesn't overlap
+                                            let
+                                                proposed =
+                                                    { p | rotation = modBy 4 (p.rotation + 1) }
+
+                                                occupied =
+                                                    allOccupiedCells (Just id) model.placed
+                                            in
+                                            if wouldOverlap occupied proposed then
+                                                p
+
+                                            else
+                                                proposed
 
                                         else
                                             p
@@ -439,6 +582,15 @@ update msg model =
 
         Resize w h ->
             { model | windowW = w, windowH = h }
+
+        ZoomIn ->
+            { model | u = min maxU (model.u + zoomStep) }
+
+        ZoomOut ->
+            { model | u = max minU (model.u - zoomStep) }
+
+        ResetView ->
+            { model | u = defaultU, panX = 0, panY = 0 }
     , Cmd.none
     )
 
@@ -462,10 +614,23 @@ viewBoard model =
             boardDims model
 
         w =
-            cols * u
+            cols * model.u
 
         h =
-            rows * u
+            rows * model.u
+
+        tx =
+            -model.panX * toFloat model.u
+
+        ty =
+            -model.panY * toFloat model.u
+
+        panTransform =
+            "translate("
+                ++ String.fromFloat tx
+                ++ ","
+                ++ String.fromFloat ty
+                ++ ")"
     in
     svg
         [ SA.viewBox ("0 0 " ++ String.fromInt w ++ " " ++ String.fromInt h)
@@ -473,34 +638,67 @@ viewBoard model =
         , SA.height (String.fromInt h)
         , SA.class "board"
         ]
-        (background cols rows
-            :: gridLines cols rows
-            ++ List.concatMap (drawPlacedTileOnBoard model) model.placed
-        )
+        [ background model
+        , g [ SA.transform panTransform ]
+            (gridLines model
+                ++ List.concatMap (drawPlacedTileOnBoard model) model.placed
+            )
+        ]
 
 
-background : Int -> Int -> Svg Msg
-background cols rows =
+background : Model -> Svg Msg
+background model =
+    let
+        ( cols, rows ) =
+            boardDims model
+    in
     rect
         [ SA.x "0"
         , SA.y "0"
-        , SA.width (String.fromInt (cols * u))
-        , SA.height (String.fromInt (rows * u))
+        , SA.width (String.fromInt (cols * model.u))
+        , SA.height (String.fromInt (rows * model.u))
         , SA.fill "#ffffff"
-        , SE.on "mousedown" (mouseDecoder BoardMouseDown)
+        , SE.on "mousedown" boardMouseDownDecoder
         ]
         []
 
 
-gridLines : Int -> Int -> List (Svg Msg)
-gridLines cols rows =
+boardMouseDownDecoder : D.Decoder Msg
+boardMouseDownDecoder =
+    D.map4 BoardMouseDown
+        (D.field "offsetX" D.float)
+        (D.field "offsetY" D.float)
+        (D.field "clientX" D.float)
+        (D.field "clientY" D.float)
+
+
+gridLines : Model -> List (Svg Msg)
+gridLines model =
     let
+        ( cols, rows ) =
+            boardDims model
+
+        u_ =
+            model.u
+
+        minCol =
+            floor model.panX - 1
+
+        maxCol =
+            minCol + cols + 3
+
+        minRow =
+            floor model.panY - 1
+
+        maxRow =
+            minRow + rows + 3
+
         vLine c =
             line
-                [ SA.x1 (String.fromInt (c * u))
-                , SA.y1 "0"
-                , SA.x2 (String.fromInt (c * u))
-                , SA.y2 (String.fromInt (rows * u))
+                [ SA.x1 (String.fromInt (c * u_))
+                , SA.y1 (String.fromInt (minRow * u_))
+                , SA.x2 (String.fromInt (c * u_))
+                , SA.y2 (String.fromInt (maxRow * u_))
                 , SA.stroke "#e8e8e8"
                 , SA.strokeWidth "1"
                 , SA.pointerEvents "none"
@@ -509,32 +707,32 @@ gridLines cols rows =
 
         hLine r =
             line
-                [ SA.x1 "0"
-                , SA.y1 (String.fromInt (r * u))
-                , SA.x2 (String.fromInt (cols * u))
-                , SA.y2 (String.fromInt (r * u))
+                [ SA.x1 (String.fromInt (minCol * u_))
+                , SA.y1 (String.fromInt (r * u_))
+                , SA.x2 (String.fromInt (maxCol * u_))
+                , SA.y2 (String.fromInt (r * u_))
                 , SA.stroke "#e8e8e8"
                 , SA.strokeWidth "1"
                 , SA.pointerEvents "none"
                 ]
                 []
     in
-    (List.range 0 cols |> List.map vLine)
-        ++ (List.range 0 rows |> List.map hLine)
+    (List.range minCol maxCol |> List.map vLine)
+        ++ (List.range minRow maxRow |> List.map hLine)
 
 
 drawPlacedTileOnBoard : Model -> PlacedTile -> List (Svg Msg)
 drawPlacedTileOnBoard model p =
     case lookupSpec p.kind of
         Just spec ->
-            drawTile True (model.selectedPlaced == Just p.id) p spec
+            drawTile model.u True (model.selectedPlaced == Just p.id) p spec
 
         Nothing ->
             []
 
 
-drawTile : Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
-drawTile onBoard isSelected p spec =
+drawTile : Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
+drawTile u_ onBoard isSelected p spec =
     let
         cells =
             specCellsRotated p.rotation spec
@@ -543,43 +741,39 @@ drawTile onBoard isSelected p spec =
         clipId =
             "tile-clip-" ++ spec.name ++ "-" ++ String.fromInt p.id
 
-        tileHandler c r =
+        tileHandler =
             SE.stopPropagationOn "mousedown"
                 (D.map2
-                    (\cx cy -> ( TileMouseDown p.id c r cx cy, True ))
+                    (\cx cy -> ( TileMouseDown p.id cx cy, True ))
                     (D.field "clientX" D.float)
                     (D.field "clientY" D.float)
                 )
 
-        interaction c r =
+        interaction =
             if onBoard then
-                [ SA.style "cursor:move;"
-                , tileHandler c r
-                ]
+                [ SA.style "cursor:move;", tileHandler ]
 
             else
                 [ SA.pointerEvents "none" ]
 
         cellRect ( c, r ) =
             rect
-                ([ SA.x (String.fromInt (c * u))
-                 , SA.y (String.fromInt (r * u))
-                 , SA.width (String.fromInt u)
-                 , SA.height (String.fromInt u)
+                ([ SA.x (String.fromInt (c * u_))
+                 , SA.y (String.fromInt (r * u_))
+                 , SA.width (String.fromInt u_)
+                 , SA.height (String.fromInt u_)
                  , SA.fill spec.color
-                 , SA.stroke "#333"
-                 , SA.strokeWidth "0.6"
                  ]
-                    ++ interaction c r
+                    ++ interaction
                 )
                 []
 
         clipRect ( c, r ) =
             rect
-                [ SA.x (String.fromInt (c * u))
-                , SA.y (String.fromInt (r * u))
-                , SA.width (String.fromInt u)
-                , SA.height (String.fromInt u)
+                [ SA.x (String.fromInt (c * u_))
+                , SA.y (String.fromInt (r * u_))
+                , SA.width (String.fromInt u_)
+                , SA.height (String.fromInt u_)
                 ]
                 []
 
@@ -593,9 +787,9 @@ drawTile onBoard isSelected p spec =
             path
                 |> List.map
                     (\( x, y ) ->
-                        String.fromFloat (x * toFloat u)
+                        String.fromFloat (x * toFloat u_)
                             ++ ","
-                            ++ String.fromFloat (y * toFloat u)
+                            ++ String.fromFloat (y * toFloat u_)
                     )
                 |> String.join " "
 
@@ -608,7 +802,7 @@ drawTile onBoard isSelected p spec =
                 [ polyline
                     [ SA.points (pointsAttr path)
                     , SA.stroke "#fff200"
-                    , SA.strokeWidth (String.fromInt u)
+                    , SA.strokeWidth (String.fromInt u_)
                     , SA.fill "none"
                     , SA.strokeLinejoin "miter"
                     , SA.strokeLinecap "butt"
@@ -628,7 +822,7 @@ drawTile onBoard isSelected p spec =
                         polyline
                             [ SA.points (pointsAttr path)
                             , SA.stroke "#fff200"
-                            , SA.strokeWidth (String.fromFloat (toFloat u / 5))
+                            , SA.strokeWidth (String.fromFloat (toFloat u_ / 5))
                             , SA.fill "none"
                             , SA.strokeLinecap "butt"
                             , SA.clipPath ("url(#" ++ clipId ++ ")")
@@ -643,10 +837,10 @@ drawTile onBoard isSelected p spec =
                     |> List.map
                         (\( c, r ) ->
                             rect
-                                [ SA.x (String.fromInt (c * u))
-                                , SA.y (String.fromInt (r * u))
-                                , SA.width (String.fromInt u)
-                                , SA.height (String.fromInt u)
+                                [ SA.x (String.fromInt (c * u_))
+                                , SA.y (String.fromInt (r * u_))
+                                , SA.width (String.fromInt u_)
+                                , SA.height (String.fromInt u_)
                                 , SA.fill "none"
                                 , SA.stroke "#ff6600"
                                 , SA.strokeWidth "2"
@@ -664,11 +858,11 @@ drawTile onBoard isSelected p spec =
                     placedLetterPos p spec
             in
             text_
-                [ SA.x (String.fromFloat (lx * toFloat u))
-                , SA.y (String.fromFloat (ly * toFloat u))
+                [ SA.x (String.fromFloat (lx * toFloat u_))
+                , SA.y (String.fromFloat (ly * toFloat u_))
                 , SA.textAnchor "middle"
                 , SA.dominantBaseline "central"
-                , SA.fontSize (String.fromFloat (toFloat u * 1.0))
+                , SA.fontSize (String.fromFloat (toFloat u_ * 1.0))
                 , SA.fontFamily "Georgia, serif"
                 , SA.fontStyle "italic"
                 , SA.fontWeight "bold"
@@ -680,11 +874,8 @@ drawTile onBoard isSelected p spec =
     clipDef :: List.map cellRect cells ++ bandList ++ markerList ++ selection ++ [ letter ]
 
 
-mouseDecoder : (Int -> Int -> Msg) -> D.Decoder Msg
-mouseDecoder toMsg =
-    D.map2 toMsg
-        (D.field "offsetX" D.float |> D.map (\x -> floor (x / toFloat u)))
-        (D.field "offsetY" D.float |> D.map (\y -> floor (y / toFloat u)))
+
+-- Sidebar
 
 
 viewSidebar : Model -> Html Msg
@@ -693,18 +884,26 @@ viewSidebar model =
         [ h3 [] [ text "Tiles" ]
         , div [ HA.class "palette" ]
             (List.map (paletteEntry model) allSpecs)
-        , h3 [] [ text "Controls" ]
+        , h3 [] [ text "Tile" ]
         , div [ HA.class "controls" ]
             [ button [ HE.onClick RotateMsg ] [ text "Rotate" ]
             , button [ HE.onClick DeleteMsg ] [ text "Delete" ]
             , button [ HE.onClick ClearMsg ] [ text "Clear" ]
+            ]
+        , h3 [] [ text "View" ]
+        , div [ HA.class "controls" ]
+            [ button [ HE.onClick ZoomIn ] [ text "Zoom +" ]
+            , button [ HE.onClick ZoomOut ] [ text "Zoom \u{2212}" ]
+            , button [ HE.onClick ResetView ] [ text "Reset" ]
             ]
         , p [ HA.class "status" ]
             [ text
                 (String.fromInt (model.rotation * 90)
                     ++ "°  ·  "
                     ++ String.fromInt (List.length model.placed)
-                    ++ " tiles"
+                    ++ " tiles  ·  zoom "
+                    ++ String.fromInt model.u
+                    ++ "px"
                 )
             ]
         ]
@@ -735,10 +934,11 @@ paletteEntry model spec =
         [ svg
             [ SA.width (String.fromInt (w * pu))
             , SA.height (String.fromInt (h * pu))
-            , SA.viewBox ("0 0 " ++ String.fromInt (w * u) ++ " " ++ String.fromInt (h * u))
+            , SA.viewBox ("0 0 " ++ String.fromInt (w * pu) ++ " " ++ String.fromInt (h * pu))
             , SA.style "pointer-events: none; display: block;"
             ]
-            (drawTile False
+            (drawTile pu
+                False
                 False
                 { id = -1, kind = spec.name, col = 0, row = 0, rotation = 0 }
                 spec

@@ -5163,11 +5163,12 @@ var $author$project$Main$Resize = F2(
 	function (a, b) {
 		return {$: 'Resize', a: a, b: b};
 	});
+var $author$project$Main$defaultU = 22;
 var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
-		{drag: $elm$core$Maybe$Nothing, nextId: 0, placed: _List_Nil, rotation: 0, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, windowH: 800, windowW: 1200},
+		{drag: $elm$core$Maybe$Nothing, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
 		A2(
 			$elm$core$Task$perform,
 			function (v) {
@@ -5631,6 +5632,16 @@ var $author$project$Main$subs = function (model) {
 			}()
 			]));
 };
+var $author$project$Main$DraggingPan = function (a) {
+	return {$: 'DraggingPan', a: a};
+};
+var $author$project$Main$DraggingTile = function (a) {
+	return {$: 'DraggingTile', a: a};
+};
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -5642,6 +5653,74 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
+var $elm$core$Basics$neq = _Utils_notEqual;
+var $elm$core$Set$insert = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var $elm$core$Set$fromList = function (list) {
+	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
+};
+var $author$project$Main$H = {$: 'H'};
+var $author$project$Main$V = {$: 'V'};
+var $author$project$Main$tileA = {
+	bandPath: _List_fromArray(
+		[
+			_Utils_Tuple2(0, 4),
+			_Utils_Tuple2(3, 4),
+			_Utils_Tuple2(3, 8)
+		]),
+	color: '#a4bcd9',
+	grid: _List_fromArray(
+		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
+	letterPos: _Utils_Tuple2(3, 4),
+	markers: _List_fromArray(
+		[
+			{col: 2, dir: $author$project$Main$H, row: 0},
+			{col: 7, dir: $author$project$Main$V, row: 3}
+		]),
+	name: 'A'
+};
+var $author$project$Main$tileR = {
+	bandPath: _List_fromArray(
+		[
+			_Utils_Tuple2(3, 0),
+			_Utils_Tuple2(3, 4),
+			_Utils_Tuple2(8, 4)
+		]),
+	color: '#f58686',
+	grid: _List_fromArray(
+		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
+	letterPos: _Utils_Tuple2(3, 4),
+	markers: _List_fromArray(
+		[
+			{col: 0, dir: $author$project$Main$V, row: 4},
+			{col: 3, dir: $author$project$Main$H, row: 7}
+		]),
+	name: 'R'
+};
+var $author$project$Main$tileT = {
+	bandPath: _List_fromArray(
+		[
+			_Utils_Tuple2(2, 0),
+			_Utils_Tuple2(2, 3),
+			_Utils_Tuple2(0, 3)
+		]),
+	color: '#99d7a0',
+	grid: _List_fromArray(
+		['..####', '######', '######', '.####.', '.####.', '..###.']),
+	letterPos: _Utils_Tuple2(2, 3),
+	markers: _List_fromArray(
+		[
+			{col: 5, dir: $author$project$Main$V, row: 2},
+			{col: 2, dir: $author$project$Main$H, row: 5}
+		]),
+	name: 'T'
+};
+var $author$project$Main$allSpecs = _List_fromArray(
+	[$author$project$Main$tileA, $author$project$Main$tileR, $author$project$Main$tileT]);
 var $elm$core$List$head = function (list) {
 	if (list.b) {
 		var x = list.a;
@@ -5651,233 +5730,15 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
-var $elm$core$Basics$modBy = _Basics_modBy;
-var $elm$core$Basics$neq = _Utils_notEqual;
-var $elm$core$Platform$Cmd$batch = _Platform_batch;
-var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
-var $author$project$Main$u = 22;
-var $author$project$Main$update = F2(
-	function (msg, model) {
-		return _Utils_Tuple2(
-			function () {
-				switch (msg.$) {
-					case 'SelectKind':
-						var n = msg.a;
-						return _Utils_update(
-							model,
-							{
-								selectedKind: $elm$core$Maybe$Just(n),
-								selectedPlaced: $elm$core$Maybe$Nothing
-							});
-					case 'BoardMouseDown':
-						var c = msg.a;
-						var r = msg.b;
-						var _v1 = model.selectedKind;
-						if (_v1.$ === 'Just') {
-							var n = _v1.a;
-							return _Utils_update(
-								model,
-								{
-									nextId: model.nextId + 1,
-									placed: _Utils_ap(
-										model.placed,
-										_List_fromArray(
-											[
-												{col: c, id: model.nextId, kind: n, rotation: model.rotation, row: r}
-											])),
-									selectedPlaced: $elm$core$Maybe$Just(model.nextId)
-								});
-						} else {
-							return _Utils_update(
-								model,
-								{selectedPlaced: $elm$core$Maybe$Nothing});
-						}
-					case 'TileMouseDown':
-						var id = msg.a;
-						var c = msg.b;
-						var r = msg.c;
-						var cx = msg.d;
-						var cy = msg.e;
-						var _v2 = $elm$core$List$head(
-							A2(
-								$elm$core$List$filter,
-								function (p) {
-									return _Utils_eq(p.id, id);
-								},
-								model.placed));
-						if (_v2.$ === 'Just') {
-							var p = _v2.a;
-							return _Utils_update(
-								model,
-								{
-									drag: $elm$core$Maybe$Just(
-										{id: id, origCol: p.col, origRow: p.row, startX: cx, startY: cy}),
-									selectedKind: $elm$core$Maybe$Nothing,
-									selectedPlaced: $elm$core$Maybe$Just(id)
-								});
-						} else {
-							return model;
-						}
-					case 'DragMouseMove':
-						var cx = msg.a;
-						var cy = msg.b;
-						var _v3 = model.drag;
-						if (_v3.$ === 'Just') {
-							var d = _v3.a;
-							var dRow = $elm$core$Basics$round((cy - d.startY) / $author$project$Main$u);
-							var dCol = $elm$core$Basics$round((cx - d.startX) / $author$project$Main$u);
-							return _Utils_update(
-								model,
-								{
-									placed: A2(
-										$elm$core$List$map,
-										function (p) {
-											return _Utils_eq(p.id, d.id) ? _Utils_update(
-												p,
-												{col: d.origCol + dCol, row: d.origRow + dRow}) : p;
-										},
-										model.placed)
-								});
-						} else {
-							return model;
-						}
-					case 'MouseUp':
-						return _Utils_update(
-							model,
-							{drag: $elm$core$Maybe$Nothing});
-					case 'RotateMsg':
-						var _v4 = model.selectedPlaced;
-						if (_v4.$ === 'Just') {
-							var id = _v4.a;
-							return _Utils_update(
-								model,
-								{
-									placed: A2(
-										$elm$core$List$map,
-										function (p) {
-											return _Utils_eq(p.id, id) ? _Utils_update(
-												p,
-												{
-													rotation: A2($elm$core$Basics$modBy, 4, p.rotation + 1)
-												}) : p;
-										},
-										model.placed)
-								});
-						} else {
-							return _Utils_update(
-								model,
-								{
-									rotation: A2($elm$core$Basics$modBy, 4, model.rotation + 1)
-								});
-						}
-					case 'DeleteMsg':
-						var _v5 = model.selectedPlaced;
-						if (_v5.$ === 'Just') {
-							var id = _v5.a;
-							return _Utils_update(
-								model,
-								{
-									placed: A2(
-										$elm$core$List$filter,
-										function (p) {
-											return !_Utils_eq(p.id, id);
-										},
-										model.placed),
-									selectedPlaced: $elm$core$Maybe$Nothing
-								});
-						} else {
-							return model;
-						}
-					case 'ClearMsg':
-						return _Utils_update(
-							model,
-							{placed: _List_Nil, selectedPlaced: $elm$core$Maybe$Nothing});
-					default:
-						var w = msg.a;
-						var h = msg.b;
-						return _Utils_update(
-							model,
-							{windowH: h, windowW: w});
-				}
-			}(),
-			$elm$core$Platform$Cmd$none);
-	});
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
-var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
-var $elm$html$Html$div = _VirtualDom_node('div');
-var $author$project$Main$BoardMouseDown = F2(
-	function (a, b) {
-		return {$: 'BoardMouseDown', a: a, b: b};
-	});
-var $elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
-var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
-var $author$project$Main$mouseDecoder = function (toMsg) {
-	return A3(
-		$elm$json$Json$Decode$map2,
-		toMsg,
+var $author$project$Main$lookupSpec = function (name) {
+	return $elm$core$List$head(
 		A2(
-			$elm$json$Json$Decode$map,
-			function (x) {
-				return $elm$core$Basics$floor(x / $author$project$Main$u);
+			$elm$core$List$filter,
+			function (s) {
+				return _Utils_eq(s.name, name);
 			},
-			A2($elm$json$Json$Decode$field, 'offsetX', $elm$json$Json$Decode$float)),
-		A2(
-			$elm$json$Json$Decode$map,
-			function (y) {
-				return $elm$core$Basics$floor(y / $author$project$Main$u);
-			},
-			A2($elm$json$Json$Decode$field, 'offsetY', $elm$json$Json$Decode$float)));
+			$author$project$Main$allSpecs));
 };
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var $elm$svg$Svg$Events$on = $elm$html$Html$Events$on;
-var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
-var $elm$svg$Svg$rect = $elm$svg$Svg$trustedNode('rect');
-var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
-var $elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
-var $elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
-var $author$project$Main$background = F2(
-	function (cols, rows) {
-		return A2(
-			$elm$svg$Svg$rect,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$x('0'),
-					$elm$svg$Svg$Attributes$y('0'),
-					$elm$svg$Svg$Attributes$width(
-					$elm$core$String$fromInt(cols * $author$project$Main$u)),
-					$elm$svg$Svg$Attributes$height(
-					$elm$core$String$fromInt(rows * $author$project$Main$u)),
-					$elm$svg$Svg$Attributes$fill('#ffffff'),
-					A2(
-					$elm$svg$Svg$Events$on,
-					'mousedown',
-					$author$project$Main$mouseDecoder($author$project$Main$BoardMouseDown))
-				]),
-			_List_Nil);
-	});
-var $author$project$Main$boardDims = function (model) {
-	return _Utils_Tuple2(
-		A2($elm$core$Basics$max, 10, ((((model.windowW * 4) / 5) | 0) / $author$project$Main$u) | 0),
-		A2($elm$core$Basics$max, 10, (model.windowH / $author$project$Main$u) | 0));
-};
-var $elm$svg$Svg$Attributes$class = _VirtualDom_attribute('class');
 var $elm$core$List$append = F2(
 	function (xs, ys) {
 		if (!ys.b) {
@@ -5889,44 +5750,49 @@ var $elm$core$List$append = F2(
 var $elm$core$List$concat = function (lists) {
 	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
 };
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
-var $author$project$Main$TileMouseDown = F5(
-	function (a, b, c, d, e) {
-		return {$: 'TileMouseDown', a: a, b: b, c: c, d: d, e: e};
-	});
-var $elm$svg$Svg$clipPath = $elm$svg$Svg$trustedNode('clipPath');
-var $elm$svg$Svg$Attributes$clipPath = _VirtualDom_attribute('clip-path');
-var $elm$svg$Svg$defs = $elm$svg$Svg$trustedNode('defs');
-var $elm$svg$Svg$Attributes$dominantBaseline = _VirtualDom_attribute('dominant-baseline');
-var $elm$svg$Svg$Attributes$fontFamily = _VirtualDom_attribute('font-family');
-var $elm$svg$Svg$Attributes$fontSize = _VirtualDom_attribute('font-size');
-var $elm$svg$Svg$Attributes$fontStyle = _VirtualDom_attribute('font-style');
-var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
-var $elm$core$String$fromFloat = _String_fromNumber;
-var $elm$core$Basics$ge = _Utils_ge;
-var $elm$svg$Svg$Attributes$id = _VirtualDom_attribute('id');
-var $author$project$Main$rotatePoint = F3(
+var $elm$core$String$foldr = _String_foldr;
+var $elm$core$String$toList = function (string) {
+	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
+};
+var $author$project$Main$parseGrid = function (rows) {
+	return $elm$core$List$concat(
+		A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (r, row) {
+					return A2(
+						$elm$core$List$filterMap,
+						$elm$core$Basics$identity,
+						A2(
+							$elm$core$List$indexedMap,
+							F2(
+								function (c, ch) {
+									return _Utils_eq(
+										ch,
+										_Utils_chr('#')) ? $elm$core$Maybe$Just(
+										_Utils_Tuple2(c, r)) : $elm$core$Maybe$Nothing;
+								}),
+							$elm$core$String$toList(row)));
+				}),
+			rows));
+};
+var $elm$core$Basics$modBy = _Basics_modBy;
+var $author$project$Main$rotateCell = F3(
 	function (k, _v0, _v1) {
 		var h = _v0.a;
 		var w = _v0.b;
-		var x = _v1.a;
-		var y = _v1.b;
-		var wf = w;
-		var hf = h;
+		var c = _v1.a;
+		var r = _v1.b;
 		var _v2 = A2($elm$core$Basics$modBy, 4, k);
 		switch (_v2) {
 			case 0:
-				return _Utils_Tuple2(x, y);
+				return _Utils_Tuple2(c, r);
 			case 1:
-				return _Utils_Tuple2(hf - y, x);
+				return _Utils_Tuple2((h - 1) - r, c);
 			case 2:
-				return _Utils_Tuple2(wf - x, hf - y);
+				return _Utils_Tuple2((w - 1) - c, (h - 1) - r);
 			default:
-				return _Utils_Tuple2(y, wf - x);
+				return _Utils_Tuple2(r, (w - 1) - c);
 		}
 	});
 var $elm$core$Maybe$map = F2(
@@ -5959,6 +5825,474 @@ var $author$project$Main$specDims = function (spec) {
 				$elm$core$String$length,
 				$elm$core$List$head(spec.grid))));
 };
+var $author$project$Main$specCellsRotated = F2(
+	function (k, spec) {
+		return A2(
+			$elm$core$List$map,
+			A2(
+				$author$project$Main$rotateCell,
+				k,
+				$author$project$Main$specDims(spec)),
+			$author$project$Main$parseGrid(spec.grid));
+	});
+var $author$project$Main$tileCells = function (p) {
+	var _v0 = $author$project$Main$lookupSpec(p.kind);
+	if (_v0.$ === 'Just') {
+		var spec = _v0.a;
+		return $elm$core$Set$fromList(
+			A2(
+				$elm$core$List$map,
+				function (_v1) {
+					var c = _v1.a;
+					var r = _v1.b;
+					return _Utils_Tuple2(c + p.col, r + p.row);
+				},
+				A2($author$project$Main$specCellsRotated, p.rotation, spec)));
+	} else {
+		return $elm$core$Set$empty;
+	}
+};
+var $elm$core$Set$union = F2(
+	function (_v0, _v1) {
+		var dict1 = _v0.a;
+		var dict2 = _v1.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$union, dict1, dict2));
+	});
+var $author$project$Main$allOccupiedCells = F2(
+	function (excludeId, placed) {
+		return A3(
+			$elm$core$List$foldl,
+			F2(
+				function (p, acc) {
+					return A2(
+						$elm$core$Set$union,
+						acc,
+						$author$project$Main$tileCells(p));
+				}),
+			$elm$core$Set$empty,
+			A2(
+				$elm$core$List$filter,
+				function (p) {
+					if (excludeId.$ === 'Just') {
+						var eid = excludeId.a;
+						return !_Utils_eq(p.id, eid);
+					} else {
+						return true;
+					}
+				},
+				placed));
+	});
+var $author$project$Main$maxU = 60;
+var $elm$core$Basics$min = F2(
+	function (x, y) {
+		return (_Utils_cmp(x, y) < 0) ? x : y;
+	});
+var $author$project$Main$minU = 8;
+var $elm$core$Platform$Cmd$batch = _Platform_batch;
+var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
+var $elm$core$Dict$filter = F2(
+	function (isGood, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (k, v, d) {
+					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
+				}),
+			$elm$core$Dict$empty,
+			dict);
+	});
+var $elm$core$Dict$get = F2(
+	function (targetKey, dict) {
+		get:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var _v1 = A2($elm$core$Basics$compare, targetKey, key);
+				switch (_v1.$) {
+					case 'LT':
+						var $temp$targetKey = targetKey,
+							$temp$dict = left;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+					case 'EQ':
+						return $elm$core$Maybe$Just(value);
+					default:
+						var $temp$targetKey = targetKey,
+							$temp$dict = right;
+						targetKey = $temp$targetKey;
+						dict = $temp$dict;
+						continue get;
+				}
+			}
+		}
+	});
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Dict$intersect = F2(
+	function (t1, t2) {
+		return A2(
+			$elm$core$Dict$filter,
+			F2(
+				function (k, _v0) {
+					return A2($elm$core$Dict$member, k, t2);
+				}),
+			t1);
+	});
+var $elm$core$Set$intersect = F2(
+	function (_v0, _v1) {
+		var dict1 = _v0.a;
+		var dict2 = _v1.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$intersect, dict1, dict2));
+	});
+var $elm$core$Dict$isEmpty = function (dict) {
+	if (dict.$ === 'RBEmpty_elm_builtin') {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $elm$core$Set$isEmpty = function (_v0) {
+	var dict = _v0.a;
+	return $elm$core$Dict$isEmpty(dict);
+};
+var $elm$core$Basics$not = _Basics_not;
+var $author$project$Main$wouldOverlap = F2(
+	function (occupied, tile) {
+		return !$elm$core$Set$isEmpty(
+			A2(
+				$elm$core$Set$intersect,
+				occupied,
+				$author$project$Main$tileCells(tile)));
+	});
+var $author$project$Main$zoomStep = 2;
+var $author$project$Main$update = F2(
+	function (msg, model) {
+		return _Utils_Tuple2(
+			function () {
+				switch (msg.$) {
+					case 'SelectKind':
+						var n = msg.a;
+						return _Utils_update(
+							model,
+							{
+								selectedKind: $elm$core$Maybe$Just(n),
+								selectedPlaced: $elm$core$Maybe$Nothing
+							});
+					case 'BoardMouseDown':
+						var offX = msg.a;
+						var offY = msg.b;
+						var clX = msg.c;
+						var clY = msg.d;
+						var _v1 = model.selectedKind;
+						if (_v1.$ === 'Just') {
+							var n = _v1.a;
+							var worldRow = $elm$core$Basics$floor((offY / model.u) + model.panY);
+							var worldCol = $elm$core$Basics$floor((offX / model.u) + model.panX);
+							var occupied = A2($author$project$Main$allOccupiedCells, $elm$core$Maybe$Nothing, model.placed);
+							var newTile = {col: worldCol, id: model.nextId, kind: n, rotation: model.rotation, row: worldRow};
+							return A2($author$project$Main$wouldOverlap, occupied, newTile) ? model : _Utils_update(
+								model,
+								{
+									nextId: model.nextId + 1,
+									placed: _Utils_ap(
+										model.placed,
+										_List_fromArray(
+											[newTile])),
+									selectedPlaced: $elm$core$Maybe$Just(model.nextId)
+								});
+						} else {
+							return _Utils_update(
+								model,
+								{
+									drag: $elm$core$Maybe$Just(
+										$author$project$Main$DraggingPan(
+											{origPanX: model.panX, origPanY: model.panY, startX: clX, startY: clY})),
+									selectedPlaced: $elm$core$Maybe$Nothing
+								});
+						}
+					case 'TileMouseDown':
+						var id = msg.a;
+						var cx = msg.b;
+						var cy = msg.c;
+						var _v2 = $elm$core$List$head(
+							A2(
+								$elm$core$List$filter,
+								function (p) {
+									return _Utils_eq(p.id, id);
+								},
+								model.placed));
+						if (_v2.$ === 'Just') {
+							var p = _v2.a;
+							return _Utils_update(
+								model,
+								{
+									drag: $elm$core$Maybe$Just(
+										$author$project$Main$DraggingTile(
+											{id: id, origCol: p.col, origRow: p.row, startX: cx, startY: cy})),
+									selectedKind: $elm$core$Maybe$Nothing,
+									selectedPlaced: $elm$core$Maybe$Just(id)
+								});
+						} else {
+							return model;
+						}
+					case 'DragMouseMove':
+						var cx = msg.a;
+						var cy = msg.b;
+						var _v3 = model.drag;
+						if (_v3.$ === 'Just') {
+							if (_v3.a.$ === 'DraggingTile') {
+								var state = _v3.a.a;
+								var dRow = $elm$core$Basics$round((cy - state.startY) / model.u);
+								var newRow = state.origRow + dRow;
+								var dCol = $elm$core$Basics$round((cx - state.startX) / model.u);
+								var newCol = state.origCol + dCol;
+								var _v4 = $elm$core$List$head(
+									A2(
+										$elm$core$List$filter,
+										function (p) {
+											return _Utils_eq(p.id, state.id);
+										},
+										model.placed));
+								if (_v4.$ === 'Just') {
+									var p = _v4.a;
+									var proposed = _Utils_update(
+										p,
+										{col: newCol, row: newRow});
+									var occupied = A2(
+										$author$project$Main$allOccupiedCells,
+										$elm$core$Maybe$Just(state.id),
+										model.placed);
+									return A2($author$project$Main$wouldOverlap, occupied, proposed) ? model : _Utils_update(
+										model,
+										{
+											placed: A2(
+												$elm$core$List$map,
+												function (t) {
+													return _Utils_eq(t.id, state.id) ? proposed : t;
+												},
+												model.placed)
+										});
+								} else {
+									return model;
+								}
+							} else {
+								var state = _v3.a.a;
+								var dy = (cy - state.startY) / model.u;
+								var dx = (cx - state.startX) / model.u;
+								return _Utils_update(
+									model,
+									{panX: state.origPanX - dx, panY: state.origPanY - dy});
+							}
+						} else {
+							return model;
+						}
+					case 'MouseUp':
+						return _Utils_update(
+							model,
+							{drag: $elm$core$Maybe$Nothing});
+					case 'RotateMsg':
+						var _v5 = model.selectedPlaced;
+						if (_v5.$ === 'Just') {
+							var id = _v5.a;
+							return _Utils_update(
+								model,
+								{
+									placed: A2(
+										$elm$core$List$map,
+										function (p) {
+											if (_Utils_eq(p.id, id)) {
+												var proposed = _Utils_update(
+													p,
+													{
+														rotation: A2($elm$core$Basics$modBy, 4, p.rotation + 1)
+													});
+												var occupied = A2(
+													$author$project$Main$allOccupiedCells,
+													$elm$core$Maybe$Just(id),
+													model.placed);
+												return A2($author$project$Main$wouldOverlap, occupied, proposed) ? p : proposed;
+											} else {
+												return p;
+											}
+										},
+										model.placed)
+								});
+						} else {
+							return _Utils_update(
+								model,
+								{
+									rotation: A2($elm$core$Basics$modBy, 4, model.rotation + 1)
+								});
+						}
+					case 'DeleteMsg':
+						var _v6 = model.selectedPlaced;
+						if (_v6.$ === 'Just') {
+							var id = _v6.a;
+							return _Utils_update(
+								model,
+								{
+									placed: A2(
+										$elm$core$List$filter,
+										function (p) {
+											return !_Utils_eq(p.id, id);
+										},
+										model.placed),
+									selectedPlaced: $elm$core$Maybe$Nothing
+								});
+						} else {
+							return model;
+						}
+					case 'ClearMsg':
+						return _Utils_update(
+							model,
+							{placed: _List_Nil, selectedPlaced: $elm$core$Maybe$Nothing});
+					case 'Resize':
+						var w = msg.a;
+						var h = msg.b;
+						return _Utils_update(
+							model,
+							{windowH: h, windowW: w});
+					case 'ZoomIn':
+						return _Utils_update(
+							model,
+							{
+								u: A2($elm$core$Basics$min, $author$project$Main$maxU, model.u + $author$project$Main$zoomStep)
+							});
+					case 'ZoomOut':
+						return _Utils_update(
+							model,
+							{
+								u: A2($elm$core$Basics$max, $author$project$Main$minU, model.u - $author$project$Main$zoomStep)
+							});
+					default:
+						return _Utils_update(
+							model,
+							{panX: 0, panY: 0, u: $author$project$Main$defaultU});
+				}
+			}(),
+			$elm$core$Platform$Cmd$none);
+	});
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
+var $elm$html$Html$div = _VirtualDom_node('div');
+var $author$project$Main$boardDims = function (model) {
+	return _Utils_Tuple2(
+		A2($elm$core$Basics$max, 10, ((((model.windowW * 4) / 5) | 0) / model.u) | 0),
+		A2($elm$core$Basics$max, 10, (model.windowH / model.u) | 0));
+};
+var $author$project$Main$BoardMouseDown = F4(
+	function (a, b, c, d) {
+		return {$: 'BoardMouseDown', a: a, b: b, c: c, d: d};
+	});
+var $elm$json$Json$Decode$map4 = _Json_map4;
+var $author$project$Main$boardMouseDownDecoder = A5(
+	$elm$json$Json$Decode$map4,
+	$author$project$Main$BoardMouseDown,
+	A2($elm$json$Json$Decode$field, 'offsetX', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'offsetY', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'clientY', $elm$json$Json$Decode$float));
+var $elm$svg$Svg$Attributes$fill = _VirtualDom_attribute('fill');
+var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$svg$Svg$Events$on = $elm$html$Html$Events$on;
+var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
+var $elm$svg$Svg$rect = $elm$svg$Svg$trustedNode('rect');
+var $elm$svg$Svg$Attributes$width = _VirtualDom_attribute('width');
+var $elm$svg$Svg$Attributes$x = _VirtualDom_attribute('x');
+var $elm$svg$Svg$Attributes$y = _VirtualDom_attribute('y');
+var $author$project$Main$background = function (model) {
+	var _v0 = $author$project$Main$boardDims(model);
+	var cols = _v0.a;
+	var rows = _v0.b;
+	return A2(
+		$elm$svg$Svg$rect,
+		_List_fromArray(
+			[
+				$elm$svg$Svg$Attributes$x('0'),
+				$elm$svg$Svg$Attributes$y('0'),
+				$elm$svg$Svg$Attributes$width(
+				$elm$core$String$fromInt(cols * model.u)),
+				$elm$svg$Svg$Attributes$height(
+				$elm$core$String$fromInt(rows * model.u)),
+				$elm$svg$Svg$Attributes$fill('#ffffff'),
+				A2($elm$svg$Svg$Events$on, 'mousedown', $author$project$Main$boardMouseDownDecoder)
+			]),
+		_List_Nil);
+};
+var $elm$svg$Svg$Attributes$class = _VirtualDom_attribute('class');
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
+var $author$project$Main$TileMouseDown = F3(
+	function (a, b, c) {
+		return {$: 'TileMouseDown', a: a, b: b, c: c};
+	});
+var $elm$svg$Svg$clipPath = $elm$svg$Svg$trustedNode('clipPath');
+var $elm$svg$Svg$Attributes$clipPath = _VirtualDom_attribute('clip-path');
+var $elm$svg$Svg$defs = $elm$svg$Svg$trustedNode('defs');
+var $elm$svg$Svg$Attributes$dominantBaseline = _VirtualDom_attribute('dominant-baseline');
+var $elm$svg$Svg$Attributes$fontFamily = _VirtualDom_attribute('font-family');
+var $elm$svg$Svg$Attributes$fontSize = _VirtualDom_attribute('font-size');
+var $elm$svg$Svg$Attributes$fontStyle = _VirtualDom_attribute('font-style');
+var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
+var $elm$core$String$fromFloat = _String_fromNumber;
+var $elm$core$Basics$ge = _Utils_ge;
+var $elm$svg$Svg$Attributes$id = _VirtualDom_attribute('id');
+var $author$project$Main$rotatePoint = F3(
+	function (k, _v0, _v1) {
+		var h = _v0.a;
+		var w = _v0.b;
+		var x = _v1.a;
+		var y = _v1.b;
+		var wf = w;
+		var hf = h;
+		var _v2 = A2($elm$core$Basics$modBy, 4, k);
+		switch (_v2) {
+			case 0:
+				return _Utils_Tuple2(x, y);
+			case 1:
+				return _Utils_Tuple2(hf - y, x);
+			case 2:
+				return _Utils_Tuple2(wf - x, hf - y);
+			default:
+				return _Utils_Tuple2(y, wf - x);
+		}
+	});
 var $author$project$Main$placedBandPath = F2(
 	function (p, spec) {
 		return A2(
@@ -6030,60 +6364,6 @@ var $author$project$Main$placedMarkerPaths = F2(
 var $elm$svg$Svg$Attributes$pointerEvents = _VirtualDom_attribute('pointer-events');
 var $elm$svg$Svg$Attributes$points = _VirtualDom_attribute('points');
 var $elm$svg$Svg$polyline = $elm$svg$Svg$trustedNode('polyline');
-var $elm$core$String$foldr = _String_foldr;
-var $elm$core$String$toList = function (string) {
-	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
-};
-var $author$project$Main$parseGrid = function (rows) {
-	return $elm$core$List$concat(
-		A2(
-			$elm$core$List$indexedMap,
-			F2(
-				function (r, row) {
-					return A2(
-						$elm$core$List$filterMap,
-						$elm$core$Basics$identity,
-						A2(
-							$elm$core$List$indexedMap,
-							F2(
-								function (c, ch) {
-									return _Utils_eq(
-										ch,
-										_Utils_chr('#')) ? $elm$core$Maybe$Just(
-										_Utils_Tuple2(c, r)) : $elm$core$Maybe$Nothing;
-								}),
-							$elm$core$String$toList(row)));
-				}),
-			rows));
-};
-var $author$project$Main$rotateCell = F3(
-	function (k, _v0, _v1) {
-		var h = _v0.a;
-		var w = _v0.b;
-		var c = _v1.a;
-		var r = _v1.b;
-		var _v2 = A2($elm$core$Basics$modBy, 4, k);
-		switch (_v2) {
-			case 0:
-				return _Utils_Tuple2(c, r);
-			case 1:
-				return _Utils_Tuple2((h - 1) - r, c);
-			case 2:
-				return _Utils_Tuple2((w - 1) - c, (h - 1) - r);
-			default:
-				return _Utils_Tuple2(r, (w - 1) - c);
-		}
-	});
-var $author$project$Main$specCellsRotated = F2(
-	function (k, spec) {
-		return A2(
-			$elm$core$List$map,
-			A2(
-				$author$project$Main$rotateCell,
-				k,
-				$author$project$Main$specDims(spec)),
-			$author$project$Main$parseGrid(spec.grid));
-	});
 var $elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
 	return {$: 'MayStopPropagation', a: a};
 };
@@ -6104,24 +6384,21 @@ var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$svg$Svg$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$svg$Svg$Attributes$textAnchor = _VirtualDom_attribute('text-anchor');
 var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
-var $author$project$Main$drawTile = F4(
-	function (onBoard, isSelected, p, spec) {
-		var tileHandler = F2(
-			function (c, r) {
-				return A2(
-					$elm$svg$Svg$Events$stopPropagationOn,
-					'mousedown',
-					A3(
-						$elm$json$Json$Decode$map2,
-						F2(
-							function (cx, cy) {
-								return _Utils_Tuple2(
-									A5($author$project$Main$TileMouseDown, p.id, c, r, cx, cy),
-									true);
-							}),
-						A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float),
-						A2($elm$json$Json$Decode$field, 'clientY', $elm$json$Json$Decode$float)));
-			});
+var $author$project$Main$drawTile = F5(
+	function (u_, onBoard, isSelected, p, spec) {
+		var tileHandler = A2(
+			$elm$svg$Svg$Events$stopPropagationOn,
+			'mousedown',
+			A3(
+				$elm$json$Json$Decode$map2,
+				F2(
+					function (cx, cy) {
+						return _Utils_Tuple2(
+							A3($author$project$Main$TileMouseDown, p.id, cx, cy),
+							true);
+					}),
+				A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float),
+				A2($elm$json$Json$Decode$field, 'clientY', $elm$json$Json$Decode$float)));
 		var pointsAttr = function (path) {
 			return A2(
 				$elm$core$String$join,
@@ -6131,7 +6408,7 @@ var $author$project$Main$drawTile = F4(
 					function (_v5) {
 						var x = _v5.a;
 						var y = _v5.b;
-						return $elm$core$String$fromFloat(x * $author$project$Main$u) + (',' + $elm$core$String$fromFloat(y * $author$project$Main$u));
+						return $elm$core$String$fromFloat(x * u_) + (',' + $elm$core$String$fromFloat(y * u_));
 					},
 					path));
 		};
@@ -6144,13 +6421,13 @@ var $author$project$Main$drawTile = F4(
 				_List_fromArray(
 					[
 						$elm$svg$Svg$Attributes$x(
-						$elm$core$String$fromFloat(lx * $author$project$Main$u)),
+						$elm$core$String$fromFloat(lx * u_)),
 						$elm$svg$Svg$Attributes$y(
-						$elm$core$String$fromFloat(ly * $author$project$Main$u)),
+						$elm$core$String$fromFloat(ly * u_)),
 						$elm$svg$Svg$Attributes$textAnchor('middle'),
 						$elm$svg$Svg$Attributes$dominantBaseline('central'),
 						$elm$svg$Svg$Attributes$fontSize(
-						$elm$core$String$fromFloat($author$project$Main$u * 1.0)),
+						$elm$core$String$fromFloat(u_ * 1.0)),
 						$elm$svg$Svg$Attributes$fontFamily('Georgia, serif'),
 						$elm$svg$Svg$Attributes$fontStyle('italic'),
 						$elm$svg$Svg$Attributes$fontWeight('bold'),
@@ -6162,17 +6439,14 @@ var $author$project$Main$drawTile = F4(
 						$elm$svg$Svg$text(spec.name)
 					]));
 		}();
-		var interaction = F2(
-			function (c, r) {
-				return onBoard ? _List_fromArray(
-					[
-						$elm$svg$Svg$Attributes$style('cursor:move;'),
-						A2(tileHandler, c, r)
-					]) : _List_fromArray(
-					[
-						$elm$svg$Svg$Attributes$pointerEvents('none')
-					]);
-			});
+		var interaction = onBoard ? _List_fromArray(
+			[
+				$elm$svg$Svg$Attributes$style('cursor:move;'),
+				tileHandler
+			]) : _List_fromArray(
+			[
+				$elm$svg$Svg$Attributes$pointerEvents('none')
+			]);
 		var clipRect = function (_v3) {
 			var c = _v3.a;
 			var r = _v3.b;
@@ -6181,13 +6455,13 @@ var $author$project$Main$drawTile = F4(
 				_List_fromArray(
 					[
 						$elm$svg$Svg$Attributes$x(
-						$elm$core$String$fromInt(c * $author$project$Main$u)),
+						$elm$core$String$fromInt(c * u_)),
 						$elm$svg$Svg$Attributes$y(
-						$elm$core$String$fromInt(r * $author$project$Main$u)),
+						$elm$core$String$fromInt(r * u_)),
 						$elm$svg$Svg$Attributes$width(
-						$elm$core$String$fromInt($author$project$Main$u)),
+						$elm$core$String$fromInt(u_)),
 						$elm$svg$Svg$Attributes$height(
-						$elm$core$String$fromInt($author$project$Main$u))
+						$elm$core$String$fromInt(u_))
 					]),
 				_List_Nil);
 		};
@@ -6203,7 +6477,7 @@ var $author$project$Main$drawTile = F4(
 							pointsAttr(path)),
 							$elm$svg$Svg$Attributes$stroke('#fff200'),
 							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromFloat($author$project$Main$u / 5)),
+							$elm$core$String$fromFloat(u_ / 5)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
 							$elm$svg$Svg$Attributes$clipPath('url(#' + (clipId + ')')),
@@ -6243,13 +6517,13 @@ var $author$project$Main$drawTile = F4(
 					_List_fromArray(
 						[
 							$elm$svg$Svg$Attributes$x(
-							$elm$core$String$fromInt(c * $author$project$Main$u)),
+							$elm$core$String$fromInt(c * u_)),
 							$elm$svg$Svg$Attributes$y(
-							$elm$core$String$fromInt(r * $author$project$Main$u)),
+							$elm$core$String$fromInt(r * u_)),
 							$elm$svg$Svg$Attributes$width(
-							$elm$core$String$fromInt($author$project$Main$u)),
+							$elm$core$String$fromInt(u_)),
 							$elm$svg$Svg$Attributes$height(
-							$elm$core$String$fromInt($author$project$Main$u)),
+							$elm$core$String$fromInt(u_)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$stroke('#ff6600'),
 							$elm$svg$Svg$Attributes$strokeWidth('2'),
@@ -6267,18 +6541,16 @@ var $author$project$Main$drawTile = F4(
 					_List_fromArray(
 						[
 							$elm$svg$Svg$Attributes$x(
-							$elm$core$String$fromInt(c * $author$project$Main$u)),
+							$elm$core$String$fromInt(c * u_)),
 							$elm$svg$Svg$Attributes$y(
-							$elm$core$String$fromInt(r * $author$project$Main$u)),
+							$elm$core$String$fromInt(r * u_)),
 							$elm$svg$Svg$Attributes$width(
-							$elm$core$String$fromInt($author$project$Main$u)),
+							$elm$core$String$fromInt(u_)),
 							$elm$svg$Svg$Attributes$height(
-							$elm$core$String$fromInt($author$project$Main$u)),
-							$elm$svg$Svg$Attributes$fill(spec.color),
-							$elm$svg$Svg$Attributes$stroke('#333'),
-							$elm$svg$Svg$Attributes$strokeWidth('0.6')
+							$elm$core$String$fromInt(u_)),
+							$elm$svg$Svg$Attributes$fill(spec.color)
 						]),
-					A2(interaction, c, r)),
+					interaction),
 				_List_Nil);
 		};
 		var bandList = function () {
@@ -6293,7 +6565,7 @@ var $author$project$Main$drawTile = F4(
 							pointsAttr(path)),
 							$elm$svg$Svg$Attributes$stroke('#fff200'),
 							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromInt($author$project$Main$u)),
+							$elm$core$String$fromInt(u_)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$strokeLinejoin('miter'),
 							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
@@ -6317,80 +6589,14 @@ var $author$project$Main$drawTile = F4(
 							_List_fromArray(
 								[letter]))))));
 	});
-var $author$project$Main$H = {$: 'H'};
-var $author$project$Main$V = {$: 'V'};
-var $author$project$Main$tileA = {
-	bandPath: _List_fromArray(
-		[
-			_Utils_Tuple2(0, 4),
-			_Utils_Tuple2(3, 4),
-			_Utils_Tuple2(3, 8)
-		]),
-	color: '#a4bcd9',
-	grid: _List_fromArray(
-		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
-	letterPos: _Utils_Tuple2(3, 4),
-	markers: _List_fromArray(
-		[
-			{col: 2, dir: $author$project$Main$H, row: 0},
-			{col: 7, dir: $author$project$Main$V, row: 3}
-		]),
-	name: 'A'
-};
-var $author$project$Main$tileR = {
-	bandPath: _List_fromArray(
-		[
-			_Utils_Tuple2(3, 0),
-			_Utils_Tuple2(3, 4),
-			_Utils_Tuple2(8, 4)
-		]),
-	color: '#f58686',
-	grid: _List_fromArray(
-		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
-	letterPos: _Utils_Tuple2(3, 4),
-	markers: _List_fromArray(
-		[
-			{col: 0, dir: $author$project$Main$V, row: 4},
-			{col: 3, dir: $author$project$Main$H, row: 7}
-		]),
-	name: 'R'
-};
-var $author$project$Main$tileT = {
-	bandPath: _List_fromArray(
-		[
-			_Utils_Tuple2(2, 0),
-			_Utils_Tuple2(2, 3),
-			_Utils_Tuple2(0, 3)
-		]),
-	color: '#99d7a0',
-	grid: _List_fromArray(
-		['..####', '######', '######', '.####.', '.####.', '..###.']),
-	letterPos: _Utils_Tuple2(2, 3),
-	markers: _List_fromArray(
-		[
-			{col: 5, dir: $author$project$Main$V, row: 2},
-			{col: 2, dir: $author$project$Main$H, row: 5}
-		]),
-	name: 'T'
-};
-var $author$project$Main$allSpecs = _List_fromArray(
-	[$author$project$Main$tileA, $author$project$Main$tileR, $author$project$Main$tileT]);
-var $author$project$Main$lookupSpec = function (name) {
-	return $elm$core$List$head(
-		A2(
-			$elm$core$List$filter,
-			function (s) {
-				return _Utils_eq(s.name, name);
-			},
-			$author$project$Main$allSpecs));
-};
 var $author$project$Main$drawPlacedTileOnBoard = F2(
 	function (model, p) {
 		var _v0 = $author$project$Main$lookupSpec(p.kind);
 		if (_v0.$ === 'Just') {
 			var spec = _v0.a;
-			return A4(
+			return A5(
 				$author$project$Main$drawTile,
+				model.u,
 				true,
 				_Utils_eq(
 					model.selectedPlaced,
@@ -6401,67 +6607,84 @@ var $author$project$Main$drawPlacedTileOnBoard = F2(
 			return _List_Nil;
 		}
 	});
+var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
 var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
 var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
 var $elm$svg$Svg$Attributes$x2 = _VirtualDom_attribute('x2');
 var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
 var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
-var $author$project$Main$gridLines = F2(
-	function (cols, rows) {
-		var vLine = function (c) {
-			return A2(
-				$elm$svg$Svg$line,
-				_List_fromArray(
-					[
-						$elm$svg$Svg$Attributes$x1(
-						$elm$core$String$fromInt(c * $author$project$Main$u)),
-						$elm$svg$Svg$Attributes$y1('0'),
-						$elm$svg$Svg$Attributes$x2(
-						$elm$core$String$fromInt(c * $author$project$Main$u)),
-						$elm$svg$Svg$Attributes$y2(
-						$elm$core$String$fromInt(rows * $author$project$Main$u)),
-						$elm$svg$Svg$Attributes$stroke('#e8e8e8'),
-						$elm$svg$Svg$Attributes$strokeWidth('1'),
-						$elm$svg$Svg$Attributes$pointerEvents('none')
-					]),
-				_List_Nil);
-		};
-		var hLine = function (r) {
-			return A2(
-				$elm$svg$Svg$line,
-				_List_fromArray(
-					[
-						$elm$svg$Svg$Attributes$x1('0'),
-						$elm$svg$Svg$Attributes$y1(
-						$elm$core$String$fromInt(r * $author$project$Main$u)),
-						$elm$svg$Svg$Attributes$x2(
-						$elm$core$String$fromInt(cols * $author$project$Main$u)),
-						$elm$svg$Svg$Attributes$y2(
-						$elm$core$String$fromInt(r * $author$project$Main$u)),
-						$elm$svg$Svg$Attributes$stroke('#e8e8e8'),
-						$elm$svg$Svg$Attributes$strokeWidth('1'),
-						$elm$svg$Svg$Attributes$pointerEvents('none')
-					]),
-				_List_Nil);
-		};
-		return _Utils_ap(
-			A2(
-				$elm$core$List$map,
-				vLine,
-				A2($elm$core$List$range, 0, cols)),
-			A2(
-				$elm$core$List$map,
-				hLine,
-				A2($elm$core$List$range, 0, rows)));
-	});
-var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
-var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
-var $author$project$Main$viewBoard = function (model) {
+var $author$project$Main$gridLines = function (model) {
+	var u_ = model.u;
+	var minRow = $elm$core$Basics$floor(model.panY) - 1;
+	var minCol = $elm$core$Basics$floor(model.panX) - 1;
 	var _v0 = $author$project$Main$boardDims(model);
 	var cols = _v0.a;
 	var rows = _v0.b;
-	var w = cols * $author$project$Main$u;
-	var h = rows * $author$project$Main$u;
+	var maxCol = (minCol + cols) + 3;
+	var hLine = function (r) {
+		return A2(
+			$elm$svg$Svg$line,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$x1(
+					$elm$core$String$fromInt(minCol * u_)),
+					$elm$svg$Svg$Attributes$y1(
+					$elm$core$String$fromInt(r * u_)),
+					$elm$svg$Svg$Attributes$x2(
+					$elm$core$String$fromInt(maxCol * u_)),
+					$elm$svg$Svg$Attributes$y2(
+					$elm$core$String$fromInt(r * u_)),
+					$elm$svg$Svg$Attributes$stroke('#e8e8e8'),
+					$elm$svg$Svg$Attributes$strokeWidth('1'),
+					$elm$svg$Svg$Attributes$pointerEvents('none')
+				]),
+			_List_Nil);
+	};
+	var maxRow = (minRow + rows) + 3;
+	var vLine = function (c) {
+		return A2(
+			$elm$svg$Svg$line,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$x1(
+					$elm$core$String$fromInt(c * u_)),
+					$elm$svg$Svg$Attributes$y1(
+					$elm$core$String$fromInt(minRow * u_)),
+					$elm$svg$Svg$Attributes$x2(
+					$elm$core$String$fromInt(c * u_)),
+					$elm$svg$Svg$Attributes$y2(
+					$elm$core$String$fromInt(maxRow * u_)),
+					$elm$svg$Svg$Attributes$stroke('#e8e8e8'),
+					$elm$svg$Svg$Attributes$strokeWidth('1'),
+					$elm$svg$Svg$Attributes$pointerEvents('none')
+				]),
+			_List_Nil);
+	};
+	return _Utils_ap(
+		A2(
+			$elm$core$List$map,
+			vLine,
+			A2($elm$core$List$range, minCol, maxCol)),
+		A2(
+			$elm$core$List$map,
+			hLine,
+			A2($elm$core$List$range, minRow, maxRow)));
+};
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
+var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
+var $elm$svg$Svg$Attributes$viewBox = _VirtualDom_attribute('viewBox');
+var $author$project$Main$viewBoard = function (model) {
+	var ty = (-model.panY) * model.u;
+	var tx = (-model.panX) * model.u;
+	var panTransform = 'translate(' + ($elm$core$String$fromFloat(tx) + (',' + ($elm$core$String$fromFloat(ty) + ')')));
+	var _v0 = $author$project$Main$boardDims(model);
+	var cols = _v0.a;
+	var rows = _v0.b;
+	var w = cols * model.u;
+	var h = rows * model.u;
 	return A2(
 		$elm$svg$Svg$svg,
 		_List_fromArray(
@@ -6474,19 +6697,29 @@ var $author$project$Main$viewBoard = function (model) {
 				$elm$core$String$fromInt(h)),
 				$elm$svg$Svg$Attributes$class('board')
 			]),
-		A2(
-			$elm$core$List$cons,
-			A2($author$project$Main$background, cols, rows),
-			_Utils_ap(
-				A2($author$project$Main$gridLines, cols, rows),
+		_List_fromArray(
+			[
+				$author$project$Main$background(model),
 				A2(
-					$elm$core$List$concatMap,
-					$author$project$Main$drawPlacedTileOnBoard(model),
-					model.placed))));
+				$elm$svg$Svg$g,
+				_List_fromArray(
+					[
+						$elm$svg$Svg$Attributes$transform(panTransform)
+					]),
+				_Utils_ap(
+					$author$project$Main$gridLines(model),
+					A2(
+						$elm$core$List$concatMap,
+						$author$project$Main$drawPlacedTileOnBoard(model),
+						model.placed)))
+			]));
 };
 var $author$project$Main$ClearMsg = {$: 'ClearMsg'};
 var $author$project$Main$DeleteMsg = {$: 'DeleteMsg'};
+var $author$project$Main$ResetView = {$: 'ResetView'};
 var $author$project$Main$RotateMsg = {$: 'RotateMsg'};
+var $author$project$Main$ZoomIn = {$: 'ZoomIn'};
+var $author$project$Main$ZoomOut = {$: 'ZoomOut'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
 var $elm$html$Html$Events$onClick = function (msg) {
@@ -6498,9 +6731,6 @@ var $elm$html$Html$Events$onClick = function (msg) {
 var $elm$html$Html$p = _VirtualDom_node('p');
 var $author$project$Main$SelectKind = function (a) {
 	return {$: 'SelectKind', a: a};
-};
-var $elm$core$Basics$negate = function (n) {
-	return -n;
 };
 var $author$project$Main$paletteEntry = F2(
 	function (model, spec) {
@@ -6531,11 +6761,12 @@ var $author$project$Main$paletteEntry = F2(
 							$elm$svg$Svg$Attributes$height(
 							$elm$core$String$fromInt(h * pu)),
 							$elm$svg$Svg$Attributes$viewBox(
-							'0 0 ' + ($elm$core$String$fromInt(w * $author$project$Main$u) + (' ' + $elm$core$String$fromInt(h * $author$project$Main$u)))),
+							'0 0 ' + ($elm$core$String$fromInt(w * pu) + (' ' + $elm$core$String$fromInt(h * pu)))),
 							$elm$svg$Svg$Attributes$style('pointer-events: none; display: block;')
 						]),
-					A4(
+					A5(
 						$author$project$Main$drawTile,
+						pu,
 						false,
 						false,
 						{col: 0, id: -1, kind: spec.name, rotation: 0, row: 0},
@@ -6574,7 +6805,7 @@ var $author$project$Main$viewSidebar = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('Controls')
+						$elm$html$Html$text('Tile')
 					])),
 				A2(
 				$elm$html$Html$div,
@@ -6616,6 +6847,52 @@ var $author$project$Main$viewSidebar = function (model) {
 							]))
 					])),
 				A2(
+				$elm$html$Html$h3,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text('View')
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('controls')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$ZoomIn)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Zoom +')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$ZoomOut)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Zoom \u2212')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$ResetView)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Reset')
+							]))
+					])),
+				A2(
 				$elm$html$Html$p,
 				_List_fromArray(
 					[
@@ -6625,7 +6902,7 @@ var $author$project$Main$viewSidebar = function (model) {
 					[
 						$elm$html$Html$text(
 						$elm$core$String$fromInt(model.rotation * 90) + ('°  ·  ' + ($elm$core$String$fromInt(
-							$elm$core$List$length(model.placed)) + ' tiles')))
+							$elm$core$List$length(model.placed)) + (' tiles  ·  zoom ' + ($elm$core$String$fromInt(model.u) + 'px')))))
 					]))
 			]));
 };
