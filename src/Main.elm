@@ -1011,6 +1011,22 @@ baseUpdate msg model =
                             List.indexedMap
                                 (\i s -> savedToPlaced (startId + i) s)
                                 saved.tiles
+
+                        -- Merge file's rules into current rules.
+                        -- Dict.union: first-arg values win on key collision, so rules
+                        -- from the loaded file take precedence, but any rule already in
+                        -- memory that isn't in the file is preserved.
+                        mergedRules =
+                            Dict.union saved.rules model.rules
+
+                        _ =
+                            Debug.log "LoadFileLoaded rules in file:" (Dict.keys saved.rules)
+
+                        _ =
+                            Debug.log "LoadFileLoaded rules in memory before merge:" (Dict.keys model.rules)
+
+                        _ =
+                            Debug.log "LoadFileLoaded rules after merge:" (Dict.keys mergedRules)
                     in
                     { model
                         | placed = newTiles
@@ -1020,7 +1036,7 @@ baseUpdate msg model =
                         , drag = Nothing
                         , panX = 0
                         , panY = 0
-                        , rules = saved.rules
+                        , rules = mergedRules
                         , factor = saved.factor
                     }
 

@@ -7133,6 +7133,19 @@ var $author$project$Main$baseUpdate = F2(
 										return A2($author$project$Main$savedToPlaced, startId + i, s);
 									}),
 								saved.tiles);
+							var mergedRules = A2($elm$core$Dict$union, saved.rules, model.rules);
+							var _v9 = A2(
+								$elm$core$Debug$log,
+								'LoadFileLoaded rules in file:',
+								$elm$core$Dict$keys(saved.rules));
+							var _v10 = A2(
+								$elm$core$Debug$log,
+								'LoadFileLoaded rules in memory before merge:',
+								$elm$core$Dict$keys(model.rules));
+							var _v11 = A2(
+								$elm$core$Debug$log,
+								'LoadFileLoaded rules after merge:',
+								$elm$core$Dict$keys(mergedRules));
 							return _Utils_update(
 								model,
 								{
@@ -7142,7 +7155,7 @@ var $author$project$Main$baseUpdate = F2(
 									panX: 0,
 									panY: 0,
 									placed: newTiles,
-									rules: saved.rules,
+									rules: mergedRules,
 									selectedKind: $elm$core$Maybe$Nothing,
 									selectedPlaced: $elm$core$Maybe$Nothing
 								});
@@ -7151,7 +7164,7 @@ var $author$project$Main$baseUpdate = F2(
 						}
 					case 'CaptureRule':
 						var kind = msg.a;
-						var _v9 = A2(
+						var _v12 = A2(
 							$elm$core$Debug$log,
 							'CaptureRule ' + (kind + ' — current rules keys BEFORE insert:'),
 							$elm$core$Dict$keys(model.rules));
@@ -7160,7 +7173,7 @@ var $author$project$Main$baseUpdate = F2(
 						} else {
 							var rule = $author$project$Main$captureRuleFromPlaced(model.placed);
 							var newRules = A3($elm$core$Dict$insert, kind, rule, model.rules);
-							var _v10 = A2(
+							var _v13 = A2(
 								$elm$core$Debug$log,
 								'CaptureRule ' + (kind + (' stored ' + ($elm$core$String$fromInt(
 									$elm$core$List$length(rule.children)) + ' children. Keys AFTER insert:'))),
@@ -7171,13 +7184,13 @@ var $author$project$Main$baseUpdate = F2(
 						}
 					case 'ShowRule':
 						var kind = msg.a;
-						var _v11 = A2(
+						var _v14 = A2(
 							$elm$core$Debug$log,
 							'ShowRule ' + (kind + '. Available keys:'),
 							$elm$core$Dict$keys(model.rules));
-						var _v12 = A2($elm$core$Dict$get, kind, model.rules);
-						if (_v12.$ === 'Just') {
-							var rule = _v12.a;
+						var _v15 = A2($elm$core$Dict$get, kind, model.rules);
+						if (_v15.$ === 'Just') {
+							var rule = _v15.a;
 							var startId = model.nextId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
@@ -7186,7 +7199,7 @@ var $author$project$Main$baseUpdate = F2(
 										return {col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
 									}),
 								rule.children);
-							var _v13 = A2(
+							var _v16 = A2(
 								$elm$core$Debug$log,
 								'Rule ' + (kind + ' has children count:'),
 								$elm$core$List$length(rule.children));
@@ -7209,27 +7222,27 @@ var $author$project$Main$baseUpdate = F2(
 							$elm$core$List$concatMap,
 							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var _v14 = $author$project$Main$renumber(newTiles);
-						var withIds = _v14.a;
-						var count = _v14.b;
+						var _v17 = $author$project$Main$renumber(newTiles);
+						var withIds = _v17.a;
+						var count = _v17.b;
 						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 					default:
-						var _v15 = model.selectedPlaced;
-						if (_v15.$ === 'Nothing') {
+						var _v18 = model.selectedPlaced;
+						if (_v18.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v15.a;
-							var _v16 = $elm$core$List$head(
+							var sid = _v18.a;
+							var _v19 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v16.$ === 'Just') {
-								var tile = _v16.a;
+							if (_v19.$ === 'Just') {
+								var tile = _v19.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7237,10 +7250,10 @@ var $author$project$Main$baseUpdate = F2(
 									},
 									model.placed);
 								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v17 = $author$project$Main$renumber(
+								var _v20 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v17.a;
-								var count = _v17.b;
+								var withIds = _v20.a;
+								var count = _v20.b;
 								return _Utils_update(
 									model,
 									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
