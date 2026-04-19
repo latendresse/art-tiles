@@ -3,10 +3,12 @@ module Main exposing (main)
 import Browser
 import Browser.Dom
 import Browser.Events
+import File.Download
 import Html exposing (Html, button, div, h3, p, text)
 import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
+import Json.Encode as E
 import Set exposing (Set)
 import Svg exposing (Svg, defs, g, line, polyline, rect, svg, text_)
 import Svg.Attributes as SA
@@ -297,6 +299,35 @@ wouldOverlap occupied tile =
 
 
 
+-- ============================ Save / serialize ============================
+
+
+encodeTile : PlacedTile -> E.Value
+encodeTile p =
+    E.object
+        [ ( "kind", E.string p.kind )
+        , ( "col", E.int p.col )
+        , ( "row", E.int p.row )
+        , ( "rotation", E.int p.rotation )
+        ]
+
+
+encodeTiling : Model -> String
+encodeTiling model =
+    E.encode 2
+        (E.object
+            [ ( "version", E.int 1 )
+            , ( "tiles", E.list encodeTile model.placed )
+            ]
+        )
+
+
+saveCmd : Model -> Cmd Msg
+saveCmd model =
+    File.Download.string "tiling.json" "application/json" (encodeTiling model)
+
+
+
 -- ============================ Model ============================
 
 
@@ -390,6 +421,7 @@ type Msg
     | ZoomIn
     | ZoomOut
     | ResetView
+    | SaveMsg
 
 
 
@@ -591,7 +623,15 @@ update msg model =
 
         ResetView ->
             { model | u = defaultU, panX = 0, panY = 0 }
-    , Cmd.none
+
+        SaveMsg ->
+            model
+    , case msg of
+        SaveMsg ->
+            saveCmd model
+
+        _ ->
+            Cmd.none
     )
 
 
@@ -911,6 +951,10 @@ viewSidebar model =
             [ button [ HE.onClick ZoomIn ] [ text "Zoom +" ]
             , button [ HE.onClick ZoomOut ] [ text "Zoom \u{2212}" ]
             , button [ HE.onClick ResetView ] [ text "Reset" ]
+            ]
+        , h3 [] [ text "File" ]
+        , div [ HA.class "controls" ]
+            [ button [ HE.onClick SaveMsg ] [ text "Save" ]
             ]
         , p [ HA.class "status" ]
             [ text
