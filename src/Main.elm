@@ -294,6 +294,49 @@ tileCells p =
                 Set.empty
 
 
+{-| Compute the set of world cells covered by at least two different
+clusters — i.e. true cell-level overlap, ignoring bounding boxes. Used
+to visually flag bad expansions so the user can move clusters apart.
+-}
+computeOverlapCells : List PlacedTile -> Set ( Int, Int )
+computeOverlapCells placed =
+    let
+        -- Group tiles by cluster id; each group's union-of-cells is one
+        -- cluster's footprint.
+        clusterFootprints =
+            placed
+                |> List.foldl
+                    (\t acc ->
+                        Dict.update t.clusterId
+                            (\m ->
+                                let
+                                    cells =
+                                        tileCells t
+                                in
+                                Just (Set.union cells (Maybe.withDefault Set.empty m))
+                            )
+                            acc
+                    )
+                    Dict.empty
+                |> Dict.values
+
+        intersections =
+            pairs clusterFootprints
+                |> List.map (\( a, b ) -> Set.intersect a b)
+    in
+    List.foldl Set.union Set.empty intersections
+
+
+pairs : List a -> List ( a, a )
+pairs xs =
+    case xs of
+        [] ->
+            []
+
+        x :: rest ->
+            List.map (\y -> ( x, y )) rest ++ pairs rest
+
+
 allOccupiedCells : Maybe Int -> List PlacedTile -> Set ( Int, Int )
 allOccupiedCells excludeId placed =
     placed
@@ -1500,8 +1543,12 @@ baseUpdate msg model =
 
         ApplyAll ->
             let
-                -- Each parent becomes one cluster with a fresh clusterId, so
-                -- super-tiles can be dragged together after expansion.
+                -- Each parent becomes one cluster with a fresh clusterId.
+                -- Children land at the rule's natural position; no automatic
+                -- fitting is done, because bbox-based shifting breaks tilings
+                -- where shapes legitimately interlock (bboxes overlap but
+                -- cells don't). Cell-level overlap is instead highlighted in
+                -- the renderer so the user can see and fix bad rules.
                 ( clusters, nextCid ) =
                     model.placed
                         |> List.foldl
@@ -1512,12 +1559,8 @@ baseUpdate msg model =
                             )
                             ( [], model.nextClusterId )
 
-                -- Automatic fitting: shift overlapping clusters apart.
-                resolved =
-                    resolveClusterOverlaps clusters
-
                 newTiles =
-                    List.concat resolved
+                    List.concat clusters
 
                 ( withIds, count ) =
                     renumber newTiles
@@ -1624,9 +1667,13 @@ viewBoard model =
         , SA.class "board"
         ]
         [ background model
-        , g [ SA.transform panTransform ]
+        , let
+            overlapCells =
+                computeOverlapCells model.placed
+          in
+          g [ SA.transform panTransform ]
             (gridLines model
-                ++ List.concatMap (drawPlacedTileOnBoard model) model.placed
+                ++ List.concatMap (drawPlacedTileOnBoard overlapCells model) model.placed
             )
         ]
 
@@ -1706,18 +1753,18 @@ gridLines model =
         ++ (List.range minRow maxRow |> List.map hLine)
 
 
-drawPlacedTileOnBoard : Model -> PlacedTile -> List (Svg Msg)
-drawPlacedTileOnBoard model p =
+drawPlacedTileOnBoard : Set ( Int, Int ) -> Model -> PlacedTile -> List (Svg Msg)
+drawPlacedTileOnBoard overlapCells model p =
     case lookupSpec p.kind of
         Just spec ->
-            drawTile model.u True (model.selectedPlaced == Just p.id) p spec
+            drawTile overlapCells model.u True (model.selectedPlaced == Just p.id) p spec
 
         Nothing ->
             []
 
 
-drawTile : Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
-drawTile u_ onBoard isSelected p spec =
+drawTile : Set ( Int, Int ) -> Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
+drawTile overlapCells u_ onBoard isSelected p spec =
     let
         uf =
             toFloat u_
@@ -1733,6 +1780,10 @@ drawTile u_ onBoard isSelected p spec =
             ( (p.col + toFloat lc * p.scale) * uf
             , (p.row + toFloat lr * p.scale) * uf
             )
+
+        -- World (Int) cell for a local cell, only meaningful at scale 1.
+        worldCellOf ( lc, lr ) =
+            ( lc + round p.col, lr + round p.row )
 
         clipId =
             "tile-clip-" ++ spec.name ++ "-" ++ String.fromInt p.id
@@ -1752,6 +1803,13 @@ drawTile u_ onBoard isSelected p spec =
             else
                 [ SA.pointerEvents "none" ]
 
+        cellFill lc =
+            if p.scale == 1.0 && Set.member (worldCellOf lc) overlapCells then
+                "#ff3333"
+
+            else
+                spec.color
+
         cellRect lc =
             let
                 ( px, py ) =
@@ -1762,7 +1820,7 @@ drawTile u_ onBoard isSelected p spec =
                  , SA.y (String.fromFloat py)
                  , SA.width (String.fromFloat cellSz)
                  , SA.height (String.fromFloat cellSz)
-                 , SA.fill spec.color
+                 , SA.fill (cellFill lc)
                  ]
                     ++ interaction
                 )
@@ -2003,7 +2061,8 @@ paletteEntry model spec =
             , SA.viewBox ("0 0 " ++ String.fromInt (w * pu) ++ " " ++ String.fromInt (h * pu))
             , SA.style "pointer-events: none; display: block;"
             ]
-            (drawTile pu
+            (drawTile Set.empty
+                pu
                 False
                 False
                 { id = -1, kind = spec.name, col = 0.0, row = 0.0, rotation = 0, scale = 1.0, clusterId = -1 }
