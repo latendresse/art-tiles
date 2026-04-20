@@ -6492,6 +6492,23 @@ var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
+var $author$project$Main$recenterOnTiles = function (model) {
+	var _v0 = $author$project$Main$tilesBoundingBox(model.placed);
+	if (_v0.$ === 'Just') {
+		var bbox = _v0.a;
+		var vpW = ((model.windowW * 4) / 5) | 0;
+		var vpH = model.windowH;
+		var viewRows = vpH / model.u;
+		var viewCols = vpW / model.u;
+		var centerY = (bbox.y1 + bbox.y2) / 2;
+		var centerX = (bbox.x1 + bbox.x2) / 2;
+		return _Utils_update(
+			model,
+			{panX: centerX - (viewCols / 2), panY: centerY - (viewRows / 2)});
+	} else {
+		return model;
+	}
+};
 var $author$project$Main$renumber = function (tiles) {
 	return _Utils_Tuple2(
 		A2(
@@ -7212,7 +7229,7 @@ var $author$project$Main$baseUpdate = F2(
 						var intermediate = _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
-						return $author$project$Main$fitToView(intermediate);
+						return $author$project$Main$recenterOnTiles(intermediate);
 					default:
 						var _v10 = model.selectedPlaced;
 						if (_v10.$ === 'Nothing') {

@@ -372,8 +372,43 @@ tilesBoundingBox tiles =
             Nothing
 
 
+{-| Pan so the tiling's bounding box is centered in the viewport, without
+changing the zoom level.
+-}
+recenterOnTiles : Model -> Model
+recenterOnTiles model =
+    case tilesBoundingBox model.placed of
+        Just bbox ->
+            let
+                vpW =
+                    toFloat (model.windowW * 4 // 5)
+
+                vpH =
+                    toFloat model.windowH
+
+                viewCols =
+                    vpW / toFloat model.u
+
+                viewRows =
+                    vpH / toFloat model.u
+
+                centerX =
+                    (bbox.x1 + bbox.x2) / 2
+
+                centerY =
+                    (bbox.y1 + bbox.y2) / 2
+            in
+            { model
+                | panX = centerX - viewCols / 2
+                , panY = centerY - viewRows / 2
+            }
+
+        Nothing ->
+            model
+
+
 {-| Choose a zoom level and pan so the tiling's bounding box fits in the
-current viewport, with a small margin, and is centered.
+current viewport, with a small margin, and is centered. May zoom in or out.
 -}
 fitToView : Model -> Model
 fitToView model =
@@ -386,14 +421,12 @@ fitToView model =
                 bboxH =
                     max 1.0 (bbox.y2 - bbox.y1)
 
-                -- Match the flex layout: board gets 4/5 of window width.
                 vpW =
                     toFloat (model.windowW * 4 // 5)
 
                 vpH =
                     toFloat model.windowH
 
-                -- 90% of available viewport so there's a visible margin.
                 fitW =
                     floor (0.9 * vpW / bboxW)
 
@@ -1171,7 +1204,7 @@ baseUpdate msg model =
                         , selectedKind = Nothing
                     }
             in
-            fitToView intermediate
+            recenterOnTiles intermediate
 
         ApplySelected ->
             case model.selectedPlaced of
