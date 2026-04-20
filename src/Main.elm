@@ -301,8 +301,6 @@ to visually flag bad expansions so the user can move clusters apart.
 computeOverlapCells : List PlacedTile -> Set ( Int, Int )
 computeOverlapCells placed =
     let
-        -- Group tiles by cluster id; each group's union-of-cells is one
-        -- cluster's footprint.
         clusterFootprints =
             placed
                 |> List.foldl
@@ -325,6 +323,41 @@ computeOverlapCells placed =
                 |> List.map (\( a, b ) -> Set.intersect a b)
     in
     List.foldl Set.union Set.empty intersections
+
+
+{-| Set of cluster ids whose cells overlap another cluster's cells.
+Scale-1 tiles only (deflated children are not included).
+-}
+computeOverlappingClusters : List PlacedTile -> Set Int
+computeOverlappingClusters placed =
+    let
+        clusterFootprints : Dict Int (Set ( Int, Int ))
+        clusterFootprints =
+            placed
+                |> List.foldl
+                    (\t acc ->
+                        Dict.update t.clusterId
+                            (\m ->
+                                Just (Set.union (tileCells t) (Maybe.withDefault Set.empty m))
+                            )
+                            acc
+                    )
+                    Dict.empty
+
+        entries : List ( Int, Set ( Int, Int ) )
+        entries =
+            Dict.toList clusterFootprints
+    in
+    pairs entries
+        |> List.concatMap
+            (\( ( aId, aCells ), ( bId, bCells ) ) ->
+                if Set.isEmpty (Set.intersect aCells bCells) then
+                    []
+
+                else
+                    [ aId, bId ]
+            )
+        |> Set.fromList
 
 
 pairs : List a -> List ( a, a )
@@ -1289,6 +1322,7 @@ type alias Model =
     , factor : Int
     , captureName : String
     , applySuffix : String
+    , overlappingClusters : Set Int
     }
 
 
@@ -1344,6 +1378,7 @@ init flags =
       , factor = factor
       , captureName = ""
       , applySuffix = ""
+      , overlappingClusters = Set.empty
       }
     , Task.perform
         (\v -> Resize (round v.viewport.width) (round v.viewport.height))
@@ -1397,8 +1432,23 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        ( newModel, baseCmd ) =
+        ( intermediate, baseCmd ) =
             baseUpdate msg model
+
+        -- Recompute per-cluster overlap status on any message except live
+        -- drag updates. That means the red highlight stays on while you
+        -- drag an already-overlapping cluster, and is re-evaluated the
+        -- moment you release the mouse.
+        newModel =
+            case msg of
+                DragMouseMove _ _ ->
+                    intermediate
+
+                _ ->
+                    { intermediate
+                        | overlappingClusters =
+                            computeOverlappingClusters intermediate.placed
+                    }
 
         persistCmd =
             if newModel.rules /= model.rules || newModel.factor /= model.factor then
@@ -1950,14 +2000,18 @@ drawPlacedTileOnBoard : Model -> PlacedTile -> List (Svg Msg)
 drawPlacedTileOnBoard model p =
     case lookupSpec p.kind of
         Just spec ->
-            drawTile model.u True (model.selectedPlaced == Just p.id) p spec
+            let
+                isOverlapping =
+                    Set.member p.clusterId model.overlappingClusters
+            in
+            drawTile isOverlapping model.u True (model.selectedPlaced == Just p.id) p spec
 
         Nothing ->
             []
 
 
-drawTile : Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
-drawTile u_ onBoard isSelected p spec =
+drawTile : Bool -> Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
+drawTile isOverlapping u_ onBoard isSelected p spec =
     let
         uf =
             toFloat u_
@@ -2100,6 +2154,31 @@ drawTile u_ onBoard isSelected p spec =
             else
                 []
 
+        overlapHighlight =
+            if isOverlapping && onBoard then
+                localCells
+                    |> List.map
+                        (\lc ->
+                            let
+                                ( px, py ) =
+                                    cellPx lc
+                            in
+                            rect
+                                [ SA.x (String.fromFloat px)
+                                , SA.y (String.fromFloat py)
+                                , SA.width (String.fromFloat cellSz)
+                                , SA.height (String.fromFloat cellSz)
+                                , SA.fill "none"
+                                , SA.stroke "#dc143c"
+                                , SA.strokeWidth "2.5"
+                                , SA.pointerEvents "none"
+                                ]
+                                []
+                        )
+
+            else
+                []
+
         letter =
             let
                 ( lx, ly ) =
@@ -2135,7 +2214,7 @@ drawTile u_ onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ selection ++ [ letter ]
+    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ selection ++ overlapHighlight ++ [ letter ]
 
 
 
@@ -2259,7 +2338,8 @@ paletteEntry model spec =
             , SA.viewBox ("0 0 " ++ String.fromInt (w * pu) ++ " " ++ String.fromInt (h * pu))
             , SA.style "pointer-events: none; display: block;"
             ]
-            (drawTile pu
+            (drawTile False
+                pu
                 False
                 False
                 { id = -1, kind = spec.name, col = 0.0, row = 0.0, rotation = 0, scale = 1.0, clusterId = -1 }

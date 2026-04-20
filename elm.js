@@ -5612,6 +5612,10 @@ var $author$project$Main$decodePersistedState = function (raw) {
 	}
 };
 var $author$project$Main$defaultU = 22;
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
 var $elm$browser$Browser$Dom$getViewport = _Browser_withWindow(_Browser_getViewport);
 var $elm$core$Basics$round = _Basics_round;
 var $author$project$Main$init = function (flags) {
@@ -5619,7 +5623,7 @@ var $author$project$Main$init = function (flags) {
 	var rules = _v0.a;
 	var factor = _v0.b;
 	return _Utils_Tuple2(
-		{applySuffix: '', captureName: '', drag: $elm$core$Maybe$Nothing, factor: factor, nextClusterId: 0, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
+		{applySuffix: '', captureName: '', drag: $elm$core$Maybe$Nothing, factor: factor, nextClusterId: 0, nextId: 0, overlappingClusters: $elm$core$Set$empty, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
 		A2(
 			$elm$core$Task$perform,
 			function (v) {
@@ -5974,10 +5978,6 @@ var $author$project$Main$SaveAtTime = F2(
 	function (a, b) {
 		return {$: 'SaveAtTime', a: a, b: b};
 	});
-var $elm$core$Set$Set_elm_builtin = function (a) {
-	return {$: 'Set_elm_builtin', a: a};
-};
-var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -7713,6 +7713,436 @@ var $author$project$Main$baseUpdate = F2(
 				}
 			}());
 	});
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
+var $author$project$Main$pairs = function (xs) {
+	if (!xs.b) {
+		return _List_Nil;
+	} else {
+		var x = xs.a;
+		var rest = xs.b;
+		return _Utils_ap(
+			A2(
+				$elm$core$List$map,
+				function (y) {
+					return _Utils_Tuple2(x, y);
+				},
+				rest),
+			$author$project$Main$pairs(rest));
+	}
+};
+var $elm$core$Dict$getMin = function (dict) {
+	getMin:
+	while (true) {
+		if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
+			var left = dict.d;
+			var $temp$dict = left;
+			dict = $temp$dict;
+			continue getMin;
+		} else {
+			return dict;
+		}
+	}
+};
+var $elm$core$Dict$moveRedLeft = function (dict) {
+	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
+		if ((dict.e.d.$ === 'RBNode_elm_builtin') && (dict.e.d.a.$ === 'Red')) {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v1 = dict.d;
+			var lClr = _v1.a;
+			var lK = _v1.b;
+			var lV = _v1.c;
+			var lLeft = _v1.d;
+			var lRight = _v1.e;
+			var _v2 = dict.e;
+			var rClr = _v2.a;
+			var rK = _v2.b;
+			var rV = _v2.c;
+			var rLeft = _v2.d;
+			var _v3 = rLeft.a;
+			var rlK = rLeft.b;
+			var rlV = rLeft.c;
+			var rlL = rLeft.d;
+			var rlR = rLeft.e;
+			var rRight = _v2.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				$elm$core$Dict$Red,
+				rlK,
+				rlV,
+				A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					rlL),
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rlR, rRight));
+		} else {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v4 = dict.d;
+			var lClr = _v4.a;
+			var lK = _v4.b;
+			var lV = _v4.c;
+			var lLeft = _v4.d;
+			var lRight = _v4.e;
+			var _v5 = dict.e;
+			var rClr = _v5.a;
+			var rK = _v5.b;
+			var rV = _v5.c;
+			var rLeft = _v5.d;
+			var rRight = _v5.e;
+			if (clr.$ === 'Black') {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			}
+		}
+	} else {
+		return dict;
+	}
+};
+var $elm$core$Dict$moveRedRight = function (dict) {
+	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
+		if ((dict.d.d.$ === 'RBNode_elm_builtin') && (dict.d.d.a.$ === 'Red')) {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v1 = dict.d;
+			var lClr = _v1.a;
+			var lK = _v1.b;
+			var lV = _v1.c;
+			var _v2 = _v1.d;
+			var _v3 = _v2.a;
+			var llK = _v2.b;
+			var llV = _v2.c;
+			var llLeft = _v2.d;
+			var llRight = _v2.e;
+			var lRight = _v1.e;
+			var _v4 = dict.e;
+			var rClr = _v4.a;
+			var rK = _v4.b;
+			var rV = _v4.c;
+			var rLeft = _v4.d;
+			var rRight = _v4.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				$elm$core$Dict$Red,
+				lK,
+				lV,
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
+				A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					lRight,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight)));
+		} else {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v5 = dict.d;
+			var lClr = _v5.a;
+			var lK = _v5.b;
+			var lV = _v5.c;
+			var lLeft = _v5.d;
+			var lRight = _v5.e;
+			var _v6 = dict.e;
+			var rClr = _v6.a;
+			var rK = _v6.b;
+			var rV = _v6.c;
+			var rLeft = _v6.d;
+			var rRight = _v6.e;
+			if (clr.$ === 'Black') {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			}
+		}
+	} else {
+		return dict;
+	}
+};
+var $elm$core$Dict$removeHelpPrepEQGT = F7(
+	function (targetKey, dict, color, key, value, left, right) {
+		if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
+			var _v1 = left.a;
+			var lK = left.b;
+			var lV = left.c;
+			var lLeft = left.d;
+			var lRight = left.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				lK,
+				lV,
+				lLeft,
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, lRight, right));
+		} else {
+			_v2$2:
+			while (true) {
+				if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Black')) {
+					if (right.d.$ === 'RBNode_elm_builtin') {
+						if (right.d.a.$ === 'Black') {
+							var _v3 = right.a;
+							var _v4 = right.d;
+							var _v5 = _v4.a;
+							return $elm$core$Dict$moveRedRight(dict);
+						} else {
+							break _v2$2;
+						}
+					} else {
+						var _v6 = right.a;
+						var _v7 = right.d;
+						return $elm$core$Dict$moveRedRight(dict);
+					}
+				} else {
+					break _v2$2;
+				}
+			}
+			return dict;
+		}
+	});
+var $elm$core$Dict$removeMin = function (dict) {
+	if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
+		var color = dict.a;
+		var key = dict.b;
+		var value = dict.c;
+		var left = dict.d;
+		var lColor = left.a;
+		var lLeft = left.d;
+		var right = dict.e;
+		if (lColor.$ === 'Black') {
+			if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
+				var _v3 = lLeft.a;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					color,
+					key,
+					value,
+					$elm$core$Dict$removeMin(left),
+					right);
+			} else {
+				var _v4 = $elm$core$Dict$moveRedLeft(dict);
+				if (_v4.$ === 'RBNode_elm_builtin') {
+					var nColor = _v4.a;
+					var nKey = _v4.b;
+					var nValue = _v4.c;
+					var nLeft = _v4.d;
+					var nRight = _v4.e;
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						$elm$core$Dict$removeMin(nLeft),
+						nRight);
+				} else {
+					return $elm$core$Dict$RBEmpty_elm_builtin;
+				}
+			}
+		} else {
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				key,
+				value,
+				$elm$core$Dict$removeMin(left),
+				right);
+		}
+	} else {
+		return $elm$core$Dict$RBEmpty_elm_builtin;
+	}
+};
+var $elm$core$Dict$removeHelp = F2(
+	function (targetKey, dict) {
+		if (dict.$ === 'RBEmpty_elm_builtin') {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		} else {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			if (_Utils_cmp(targetKey, key) < 0) {
+				if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Black')) {
+					var _v4 = left.a;
+					var lLeft = left.d;
+					if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
+						var _v6 = lLeft.a;
+						return A5(
+							$elm$core$Dict$RBNode_elm_builtin,
+							color,
+							key,
+							value,
+							A2($elm$core$Dict$removeHelp, targetKey, left),
+							right);
+					} else {
+						var _v7 = $elm$core$Dict$moveRedLeft(dict);
+						if (_v7.$ === 'RBNode_elm_builtin') {
+							var nColor = _v7.a;
+							var nKey = _v7.b;
+							var nValue = _v7.c;
+							var nLeft = _v7.d;
+							var nRight = _v7.e;
+							return A5(
+								$elm$core$Dict$balance,
+								nColor,
+								nKey,
+								nValue,
+								A2($elm$core$Dict$removeHelp, targetKey, nLeft),
+								nRight);
+						} else {
+							return $elm$core$Dict$RBEmpty_elm_builtin;
+						}
+					}
+				} else {
+					return A5(
+						$elm$core$Dict$RBNode_elm_builtin,
+						color,
+						key,
+						value,
+						A2($elm$core$Dict$removeHelp, targetKey, left),
+						right);
+				}
+			} else {
+				return A2(
+					$elm$core$Dict$removeHelpEQGT,
+					targetKey,
+					A7($elm$core$Dict$removeHelpPrepEQGT, targetKey, dict, color, key, value, left, right));
+			}
+		}
+	});
+var $elm$core$Dict$removeHelpEQGT = F2(
+	function (targetKey, dict) {
+		if (dict.$ === 'RBNode_elm_builtin') {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			if (_Utils_eq(targetKey, key)) {
+				var _v1 = $elm$core$Dict$getMin(right);
+				if (_v1.$ === 'RBNode_elm_builtin') {
+					var minKey = _v1.b;
+					var minValue = _v1.c;
+					return A5(
+						$elm$core$Dict$balance,
+						color,
+						minKey,
+						minValue,
+						left,
+						$elm$core$Dict$removeMin(right));
+				} else {
+					return $elm$core$Dict$RBEmpty_elm_builtin;
+				}
+			} else {
+				return A5(
+					$elm$core$Dict$balance,
+					color,
+					key,
+					value,
+					left,
+					A2($elm$core$Dict$removeHelp, targetKey, right));
+			}
+		} else {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		}
+	});
+var $elm$core$Dict$remove = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$removeHelp, key, dict);
+		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
+			var _v1 = _v0.a;
+			var k = _v0.b;
+			var v = _v0.c;
+			var l = _v0.d;
+			var r = _v0.e;
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
+		} else {
+			var x = _v0;
+			return x;
+		}
+	});
+var $elm$core$Dict$update = F3(
+	function (targetKey, alter, dictionary) {
+		var _v0 = alter(
+			A2($elm$core$Dict$get, targetKey, dictionary));
+		if (_v0.$ === 'Just') {
+			var value = _v0.a;
+			return A3($elm$core$Dict$insert, targetKey, value, dictionary);
+		} else {
+			return A2($elm$core$Dict$remove, targetKey, dictionary);
+		}
+	});
+var $author$project$Main$computeOverlappingClusters = function (placed) {
+	var clusterFootprints = A3(
+		$elm$core$List$foldl,
+		F2(
+			function (t, acc) {
+				return A3(
+					$elm$core$Dict$update,
+					t.clusterId,
+					function (m) {
+						return $elm$core$Maybe$Just(
+							A2(
+								$elm$core$Set$union,
+								$author$project$Main$tileCells(t),
+								A2($elm$core$Maybe$withDefault, $elm$core$Set$empty, m)));
+					},
+					acc);
+			}),
+		$elm$core$Dict$empty,
+		placed);
+	var entries = $elm$core$Dict$toList(clusterFootprints);
+	return $elm$core$Set$fromList(
+		A2(
+			$elm$core$List$concatMap,
+			function (_v0) {
+				var _v1 = _v0.a;
+				var aId = _v1.a;
+				var aCells = _v1.b;
+				var _v2 = _v0.b;
+				var bId = _v2.a;
+				var bCells = _v2.b;
+				return $elm$core$Set$isEmpty(
+					A2($elm$core$Set$intersect, aCells, bCells)) ? _List_Nil : _List_fromArray(
+					[aId, bId]);
+			},
+			$author$project$Main$pairs(entries)));
+};
 var $author$project$Main$encodePersistedState = F2(
 	function (rules, factor) {
 		return A2(
@@ -7733,8 +8163,19 @@ var $author$project$Main$persistState = _Platform_outgoingPort('persistState', $
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		var _v0 = A2($author$project$Main$baseUpdate, msg, model);
-		var newModel = _v0.a;
+		var intermediate = _v0.a;
 		var baseCmd = _v0.b;
+		var newModel = function () {
+			if (msg.$ === 'DragMouseMove') {
+				return intermediate;
+			} else {
+				return _Utils_update(
+					intermediate,
+					{
+						overlappingClusters: $author$project$Main$computeOverlappingClusters(intermediate.placed)
+					});
+			}
+		}();
 		var persistCmd = ((!_Utils_eq(newModel.rules, model.rules)) || (!_Utils_eq(newModel.factor, model.factor))) ? $author$project$Main$persistState(
 			A2($author$project$Main$encodePersistedState, newModel.rules, newModel.factor)) : $elm$core$Platform$Cmd$none;
 		return _Utils_Tuple2(
@@ -7807,11 +8248,6 @@ var $author$project$Main$background = function (model) {
 		_List_Nil);
 };
 var $elm$svg$Svg$Attributes$class = _VirtualDom_attribute('class');
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
 var $author$project$Main$TileMouseDown = F3(
 	function (a, b, c) {
 		return {$: 'TileMouseDown', a: a, b: b, c: c};
@@ -7938,8 +8374,8 @@ var $elm$svg$Svg$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$svg$Svg$Attributes$textAnchor = _VirtualDom_attribute('text-anchor');
 var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
 var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
-var $author$project$Main$drawTile = F5(
-	function (u_, onBoard, isSelected, p, spec) {
+var $author$project$Main$drawTile = F6(
+	function (isOverlapping, u_, onBoard, isSelected, p, spec) {
 		var uf = u_;
 		var tileHandler = A2(
 			$elm$svg$Svg$Events$stopPropagationOn,
@@ -7960,9 +8396,9 @@ var $author$project$Main$drawTile = F5(
 				' ',
 				A2(
 					$elm$core$List$map,
-					function (_v5) {
-						var x = _v5.a;
-						var y = _v5.b;
+					function (_v6) {
+						var x = _v6.a;
+						var y = _v6.b;
 						return $elm$core$String$fromFloat(x * uf) + (',' + $elm$core$String$fromFloat(y * uf));
 					},
 					path));
@@ -7979,9 +8415,9 @@ var $author$project$Main$drawTile = F5(
 		var clipId = 'tile-clip-' + (spec.name + ('-' + $elm$core$String$fromInt(p.id)));
 		var cellSz = p.scale * uf;
 		var letter = function () {
-			var _v4 = A2($author$project$Main$placedLetterPos, p, spec);
-			var lx = _v4.a;
-			var ly = _v4.b;
+			var _v5 = A2($author$project$Main$placedLetterPos, p, spec);
+			var lx = _v5.a;
+			var ly = _v5.b;
 			var lxPx = lx * uf;
 			var lyPx = ly * uf;
 			var rotTransform = 'rotate(' + ($elm$core$String$fromInt(p.rotation * 90) + (' ' + ($elm$core$String$fromFloat(lxPx) + (' ' + ($elm$core$String$fromFloat(lyPx) + ')')))));
@@ -8029,15 +8465,15 @@ var $author$project$Main$drawTile = F5(
 					_List_Nil);
 			},
 			A2($author$project$Main$placedMarkerPaths, p, spec));
-		var cellPx = function (_v3) {
-			var lc = _v3.a;
-			var lr = _v3.b;
+		var cellPx = function (_v4) {
+			var lc = _v4.a;
+			var lr = _v4.b;
 			return _Utils_Tuple2((p.col + (lc * p.scale)) * uf, (p.row + (lr * p.scale)) * uf);
 		};
 		var cellRect = function (lc) {
-			var _v2 = cellPx(lc);
-			var px = _v2.a;
-			var py = _v2.b;
+			var _v3 = cellPx(lc);
+			var px = _v3.a;
+			var py = _v3.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_Utils_ap(
@@ -8057,9 +8493,9 @@ var $author$project$Main$drawTile = F5(
 				_List_Nil);
 		};
 		var clipRect = function (lc) {
-			var _v1 = cellPx(lc);
-			var px = _v1.a;
-			var py = _v1.b;
+			var _v2 = cellPx(lc);
+			var px = _v2.a;
+			var py = _v2.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_List_fromArray(
@@ -8088,6 +8524,32 @@ var $author$project$Main$drawTile = F5(
 						]),
 					A2($elm$core$List$map, clipRect, localCells))
 				]));
+		var overlapHighlight = (isOverlapping && onBoard) ? A2(
+			$elm$core$List$map,
+			function (lc) {
+				var _v1 = cellPx(lc);
+				var px = _v1.a;
+				var py = _v1.b;
+				return A2(
+					$elm$svg$Svg$rect,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$x(
+							$elm$core$String$fromFloat(px)),
+							$elm$svg$Svg$Attributes$y(
+							$elm$core$String$fromFloat(py)),
+							$elm$svg$Svg$Attributes$width(
+							$elm$core$String$fromFloat(cellSz)),
+							$elm$svg$Svg$Attributes$height(
+							$elm$core$String$fromFloat(cellSz)),
+							$elm$svg$Svg$Attributes$fill('none'),
+							$elm$svg$Svg$Attributes$stroke('#dc143c'),
+							$elm$svg$Svg$Attributes$strokeWidth('2.5'),
+							$elm$svg$Svg$Attributes$pointerEvents('none')
+						]),
+					_List_Nil);
+			},
+			localCells) : _List_Nil;
 		var selection = isSelected ? A2(
 			$elm$core$List$map,
 			function (lc) {
@@ -8147,16 +8609,25 @@ var $author$project$Main$drawTile = F5(
 						markerList,
 						_Utils_ap(
 							selection,
-							_List_fromArray(
-								[letter]))))));
+							_Utils_ap(
+								overlapHighlight,
+								_List_fromArray(
+									[letter])))))));
+	});
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return A2($elm$core$Dict$member, key, dict);
 	});
 var $author$project$Main$drawPlacedTileOnBoard = F2(
 	function (model, p) {
 		var _v0 = $author$project$Main$lookupSpec(p.kind);
 		if (_v0.$ === 'Just') {
 			var spec = _v0.a;
-			return A5(
+			var isOverlapping = A2($elm$core$Set$member, p.clusterId, model.overlappingClusters);
+			return A6(
 				$author$project$Main$drawTile,
+				isOverlapping,
 				model.u,
 				true,
 				_Utils_eq(
@@ -8363,8 +8834,9 @@ var $author$project$Main$paletteEntry = F2(
 							'0 0 ' + ($elm$core$String$fromInt(w * pu) + (' ' + $elm$core$String$fromInt(h * pu)))),
 							$elm$svg$Svg$Attributes$style('pointer-events: none; display: block;')
 						]),
-					A5(
+					A6(
 						$author$project$Main$drawTile,
+						false,
 						pu,
 						false,
 						false,
