@@ -738,13 +738,15 @@ shiftCluster ( dx, dy ) cluster =
 
 {-| Repeatedly find the first overlapping pair and push the later one along
 its minimum translation axis, until no cluster pair overlaps or an iteration
-cap is hit.
+cap is hit. The cap is generous so the cascade of pushes from many
+newly-expanded clusters (e.g. 49 after a second substitution of T) has room
+to settle.
 -}
 resolveClusterOverlaps : List (List PlacedTile) -> List (List PlacedTile)
 resolveClusterOverlaps initial =
     let
         maxIterations =
-            500
+            20000
 
         loop : Int -> List (List PlacedTile) -> List (List PlacedTile)
         loop n clusters =
@@ -756,11 +758,7 @@ resolveClusterOverlaps initial =
                     Nothing ->
                         clusters
 
-                    Just ( iEarly, jLater, push ) ->
-                        let
-                            _ =
-                                ( iEarly, jLater )
-                        in
+                    Just ( _, jLater, push ) ->
                         loop (n - 1)
                             (List.indexedMap
                                 (\k c ->

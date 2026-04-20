@@ -6724,7 +6724,7 @@ var $author$project$Main$shiftCluster = F2(
 			cluster);
 	});
 var $author$project$Main$resolveClusterOverlaps = function (initial) {
-	var maxIterations = 500;
+	var maxIterations = 20000;
 	var loop = F2(
 		function (n, clusters) {
 			loop:
@@ -6737,10 +6737,8 @@ var $author$project$Main$resolveClusterOverlaps = function (initial) {
 						return clusters;
 					} else {
 						var _v1 = _v0.a;
-						var iEarly = _v1.a;
 						var jLater = _v1.b;
 						var push = _v1.c;
-						var _v2 = _Utils_Tuple2(iEarly, jLater);
 						var $temp$n = n - 1,
 							$temp$clusters = A2(
 							$elm$core$List$indexedMap,
