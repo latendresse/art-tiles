@@ -6401,6 +6401,74 @@ var $elm$file$File$Select$file = F2(
 			toMsg,
 			_File_uploadOne(mimes));
 	});
+var $elm$core$Basics$clamp = F3(
+	function (low, high, number) {
+		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
+	});
+var $author$project$Main$maxU = 60;
+var $author$project$Main$tileBounds = function (t) {
+	var _v0 = $author$project$Main$lookupSpec(t.kind);
+	if (_v0.$ === 'Just') {
+		var spec = _v0.a;
+		var _v1 = $author$project$Main$specDims(spec);
+		var h = _v1.a;
+		var w = _v1.b;
+		var _v2 = (!A2($elm$core$Basics$modBy, 2, t.rotation)) ? _Utils_Tuple2(w, h) : _Utils_Tuple2(h, w);
+		var sw = _v2.a;
+		var sh = _v2.b;
+		return $elm$core$Maybe$Just(
+			{x1: t.col, x2: t.col + (sw * t.scale), y1: t.row, y2: t.row + (sh * t.scale)});
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Main$tilesBoundingBox = function (tiles) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (b, acc) {
+				if (acc.$ === 'Nothing') {
+					return $elm$core$Maybe$Just(b);
+				} else {
+					var a = acc.a;
+					return $elm$core$Maybe$Just(
+						{
+							x1: A2($elm$core$Basics$min, a.x1, b.x1),
+							x2: A2($elm$core$Basics$max, a.x2, b.x2),
+							y1: A2($elm$core$Basics$min, a.y1, b.y1),
+							y2: A2($elm$core$Basics$max, a.y2, b.y2)
+						});
+				}
+			}),
+		$elm$core$Maybe$Nothing,
+		A2($elm$core$List$filterMap, $author$project$Main$tileBounds, tiles));
+};
+var $author$project$Main$fitToView = function (model) {
+	var _v0 = $author$project$Main$tilesBoundingBox(model.placed);
+	if (_v0.$ === 'Just') {
+		var bbox = _v0.a;
+		var vpW = ((model.windowW * 4) / 5) | 0;
+		var vpH = model.windowH;
+		var centerY = (bbox.y1 + bbox.y2) / 2;
+		var centerX = (bbox.x1 + bbox.x2) / 2;
+		var bboxW = A2($elm$core$Basics$max, 1.0, bbox.x2 - bbox.x1);
+		var fitW = $elm$core$Basics$floor((0.9 * vpW) / bboxW);
+		var bboxH = A2($elm$core$Basics$max, 1.0, bbox.y2 - bbox.y1);
+		var fitH = $elm$core$Basics$floor((0.9 * vpH) / bboxH);
+		var newU = A3(
+			$elm$core$Basics$clamp,
+			1,
+			$author$project$Main$maxU,
+			A2($elm$core$Basics$min, fitW, fitH));
+		var viewCols = vpW / newU;
+		var viewRows = vpH / newU;
+		return _Utils_update(
+			model,
+			{panX: centerX - (viewCols / 2), panY: centerY - (viewRows / 2), u: newU});
+	} else {
+		return model;
+	}
+};
 var $elm$time$Time$Name = function (a) {
 	return {$: 'Name', a: a};
 };
@@ -6420,7 +6488,6 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
-var $author$project$Main$maxU = 60;
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
@@ -7054,6 +7121,8 @@ var $author$project$Main$baseUpdate = F2(
 						return _Utils_update(
 							model,
 							{panX: 0, panY: 0, u: $author$project$Main$defaultU});
+					case 'FitView':
+						return $author$project$Main$fitToView(model);
 					case 'SaveMsg':
 						return model;
 					case 'SaveAtTime':
@@ -7140,15 +7209,10 @@ var $author$project$Main$baseUpdate = F2(
 						var _v9 = $author$project$Main$renumber(newTiles);
 						var withIds = _v9.a;
 						var count = _v9.b;
-						return _Utils_update(
+						var intermediate = _Utils_update(
 							model,
-							{
-								nextId: count,
-								placed: withIds,
-								selectedKind: $elm$core$Maybe$Nothing,
-								selectedPlaced: $elm$core$Maybe$Nothing,
-								u: A2($elm$core$Basics$max, 1, (model.u / model.factor) | 0)
-							});
+							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
+						return $author$project$Main$fitToView(intermediate);
 					default:
 						var _v10 = model.selectedPlaced;
 						if (_v10.$ === 'Nothing') {
@@ -7772,6 +7836,7 @@ var $author$project$Main$CaptureRule = function (a) {
 };
 var $author$project$Main$ClearMsg = {$: 'ClearMsg'};
 var $author$project$Main$DeleteMsg = {$: 'DeleteMsg'};
+var $author$project$Main$FitView = {$: 'FitView'};
 var $author$project$Main$LoadMsg = {$: 'LoadMsg'};
 var $author$project$Main$ResetView = {$: 'ResetView'};
 var $author$project$Main$RotateMsg = {$: 'RotateMsg'};
@@ -7976,6 +8041,16 @@ var $author$project$Main$viewSidebar = function (model) {
 						_List_fromArray(
 							[
 								$elm$html$Html$text('Zoom \u2212')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$FitView)
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Fit')
 							])),
 						A2(
 						$elm$html$Html$button,

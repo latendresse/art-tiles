@@ -315,6 +315,117 @@ wouldOverlap occupied tile =
 
 
 
+-- ============================ Bounding box / fit-to-view ============================
+
+
+type alias BBox =
+    { x1 : Float, y1 : Float, x2 : Float, y2 : Float }
+
+
+{-| World-space bounding box of a single placed tile, accounting for scale
+and whether rotation has swapped its native width/height.
+-}
+tileBounds : PlacedTile -> Maybe BBox
+tileBounds t =
+    case lookupSpec t.kind of
+        Just spec ->
+            let
+                ( h, w ) =
+                    specDims spec
+
+                ( sw, sh ) =
+                    if modBy 2 t.rotation == 0 then
+                        ( toFloat w, toFloat h )
+
+                    else
+                        ( toFloat h, toFloat w )
+            in
+            Just
+                { x1 = t.col
+                , y1 = t.row
+                , x2 = t.col + sw * t.scale
+                , y2 = t.row + sh * t.scale
+                }
+
+        Nothing ->
+            Nothing
+
+
+tilesBoundingBox : List PlacedTile -> Maybe BBox
+tilesBoundingBox tiles =
+    tiles
+        |> List.filterMap tileBounds
+        |> List.foldl
+            (\b acc ->
+                case acc of
+                    Nothing ->
+                        Just b
+
+                    Just a ->
+                        Just
+                            { x1 = min a.x1 b.x1
+                            , y1 = min a.y1 b.y1
+                            , x2 = max a.x2 b.x2
+                            , y2 = max a.y2 b.y2
+                            }
+            )
+            Nothing
+
+
+{-| Choose a zoom level and pan so the tiling's bounding box fits in the
+current viewport, with a small margin, and is centered.
+-}
+fitToView : Model -> Model
+fitToView model =
+    case tilesBoundingBox model.placed of
+        Just bbox ->
+            let
+                bboxW =
+                    max 1.0 (bbox.x2 - bbox.x1)
+
+                bboxH =
+                    max 1.0 (bbox.y2 - bbox.y1)
+
+                -- Match the flex layout: board gets 4/5 of window width.
+                vpW =
+                    toFloat (model.windowW * 4 // 5)
+
+                vpH =
+                    toFloat model.windowH
+
+                -- 90% of available viewport so there's a visible margin.
+                fitW =
+                    floor (0.9 * vpW / bboxW)
+
+                fitH =
+                    floor (0.9 * vpH / bboxH)
+
+                newU =
+                    clamp 1 maxU (min fitW fitH)
+
+                centerX =
+                    (bbox.x1 + bbox.x2) / 2
+
+                centerY =
+                    (bbox.y1 + bbox.y2) / 2
+
+                viewCols =
+                    vpW / toFloat newU
+
+                viewRows =
+                    vpH / toFloat newU
+            in
+            { model
+                | u = newU
+                , panX = centerX - viewCols / 2
+                , panY = centerY - viewRows / 2
+            }
+
+        Nothing ->
+            model
+
+
+
 -- ============================ Substitution ============================
 
 
@@ -715,6 +826,7 @@ type Msg
     | ZoomIn
     | ZoomOut
     | ResetView
+    | FitView
     | SaveMsg
     | SaveAtTime Time.Zone Time.Posix
     | LoadMsg
@@ -943,6 +1055,9 @@ baseUpdate msg model =
         ResetView ->
             { model | u = defaultU, panX = 0, panY = 0 }
 
+        FitView ->
+            fitToView model
+
         SaveMsg ->
             model
 
@@ -1047,19 +1162,16 @@ baseUpdate msg model =
 
                 ( withIds, count ) =
                     renumber newTiles
-            in
-            { model
-                | placed = withIds
-                , nextId = count
-                , selectedPlaced = Nothing
-                , selectedKind = Nothing
 
-                -- Inflation multiplies every position by `factor`, so the
-                -- tiling physically grows. Divide the zoom by the same amount
-                -- so the on-screen extent stays the same; you just see more
-                -- (smaller) tiles.
-                , u = max 1 (model.u // model.factor)
-            }
+                intermediate =
+                    { model
+                        | placed = withIds
+                        , nextId = count
+                        , selectedPlaced = Nothing
+                        , selectedKind = Nothing
+                    }
+            in
+            fitToView intermediate
 
         ApplySelected ->
             case model.selectedPlaced of
@@ -1444,6 +1556,7 @@ viewSidebar model =
         , div [ HA.class "controls" ]
             [ button [ HE.onClick ZoomIn ] [ text "Zoom +" ]
             , button [ HE.onClick ZoomOut ] [ text "Zoom \u{2212}" ]
+            , button [ HE.onClick FitView ] [ text "Fit" ]
             , button [ HE.onClick ResetView ] [ text "Reset" ]
             ]
         , h3 [] [ text "Substitution" ]
