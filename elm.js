@@ -6274,11 +6274,6 @@ var $author$project$Main$captureRuleFromPlaced = function (placed) {
 			placed)
 	};
 };
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
 var $author$project$Main$SavedTiling = F3(
 	function (tiles, rules, factor) {
 		return {factor: factor, rules: rules, tiles: tiles};
@@ -6430,6 +6425,32 @@ var $author$project$Main$deflateTile = F3(
 				[t]);
 		}
 	});
+var $author$project$Main$expandToCluster = F3(
+	function (rules, factor, t) {
+		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
+		if (_v0.$ === 'Just') {
+			var rule = _v0.a;
+			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
+			var ruleW = _v1.a;
+			var ruleH = _v1.b;
+			return A2(
+				$elm$core$List$map,
+				function (c) {
+					return {col: c.col, id: 0, kind: c.kind, rotation: c.rotation, row: c.row, scale: t.scale};
+				},
+				A2(
+					$elm$core$List$map,
+					A3($author$project$Main$rotateChild, t.rotation, ruleW, ruleH),
+					rule.children));
+		} else {
+			return _List_fromArray(
+				[
+					_Utils_update(
+					t,
+					{col: 0, row: 0})
+				]);
+		}
+	});
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
@@ -6528,10 +6549,60 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
+var $author$project$Main$layoutClustersInRow = F2(
+	function (spacing, clusters) {
+		var _v0 = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (cluster, _v1) {
+					var xPos = _v1.a;
+					var acc = _v1.b;
+					var _v2 = $author$project$Main$tilesBoundingBox(cluster);
+					if (_v2.$ === 'Just') {
+						var bbox = _v2.a;
+						var w = bbox.x2 - bbox.x1;
+						var dx = xPos - bbox.x1;
+						var shifted = A2(
+							$elm$core$List$map,
+							function (t) {
+								return _Utils_update(
+									t,
+									{col: t.col + dx});
+							},
+							cluster);
+						return _Utils_Tuple2(
+							(xPos + w) + spacing,
+							_Utils_ap(acc, shifted));
+					} else {
+						return _Utils_Tuple2(xPos, acc);
+					}
+				}),
+			_Utils_Tuple2(0, _List_Nil),
+			clusters);
+		var collected = _v0.b;
+		return collected;
+	});
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
+var $author$project$Main$recenterOnTiles = function (model) {
+	var _v0 = $author$project$Main$tilesBoundingBox(model.placed);
+	if (_v0.$ === 'Just') {
+		var bbox = _v0.a;
+		var vpW = ((model.windowW * 4) / 5) | 0;
+		var vpH = model.windowH;
+		var viewRows = vpH / model.u;
+		var viewCols = vpW / model.u;
+		var centerY = (bbox.y1 + bbox.y2) / 2;
+		var centerX = (bbox.x1 + bbox.x2) / 2;
+		return _Utils_update(
+			model,
+			{panX: centerX - (viewCols / 2), panY: centerY - (viewRows / 2)});
+	} else {
+		return model;
+	}
+};
 var $author$project$Main$renumber = function (tiles) {
 	return _Utils_Tuple2(
 		A2(
@@ -7242,16 +7313,19 @@ var $author$project$Main$baseUpdate = F2(
 								{drag: $elm$core$Maybe$Nothing, placed: _List_Nil, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 						}
 					case 'ApplyAll':
-						var newTiles = A2(
-							$elm$core$List$concatMap,
-							A2($author$project$Main$deflateTile, model.rules, model.factor),
+						var spacing = 2.0;
+						var clusters = A2(
+							$elm$core$List$map,
+							A2($author$project$Main$expandToCluster, model.rules, model.factor),
 							model.placed);
-						var _v9 = $author$project$Main$renumber(newTiles);
+						var laidOut = A2($author$project$Main$layoutClustersInRow, spacing, clusters);
+						var _v9 = $author$project$Main$renumber(laidOut);
 						var withIds = _v9.a;
 						var count = _v9.b;
-						return _Utils_update(
-							model,
-							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
+						return $author$project$Main$recenterOnTiles(
+							_Utils_update(
+								model,
+								{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing}));
 					default:
 						var _v10 = model.selectedPlaced;
 						if (_v10.$ === 'Nothing') {
@@ -7409,6 +7483,11 @@ var $author$project$Main$background = function (model) {
 		_List_Nil);
 };
 var $elm$svg$Svg$Attributes$class = _VirtualDom_attribute('class');
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
 var $author$project$Main$TileMouseDown = F3(
 	function (a, b, c) {
 		return {$: 'TileMouseDown', a: a, b: b, c: c};

@@ -599,6 +599,68 @@ expandTile rules factor t =
             [ { t | col = t.col * kf, row = t.row * kf } ]
 
 
+{-| Expand one parent into a cluster at native scale, positioned at the
+rule's local origin (i.e. ignoring the parent's world position). If the
+parent has no rule, the cluster is just the parent itself at origin.
+-}
+expandToCluster : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
+expandToCluster rules factor t =
+    case Dict.get t.kind rules of
+        Just rule ->
+            let
+                ( ruleW, ruleH ) =
+                    ruleBoxDims factor t.kind
+            in
+            rule.children
+                |> List.map (rotateChild t.rotation ruleW ruleH)
+                |> List.map
+                    (\c ->
+                        { id = 0
+                        , kind = c.kind
+                        , col = toFloat c.col
+                        , row = toFloat c.row
+                        , rotation = c.rotation
+                        , scale = t.scale
+                        }
+                    )
+
+        Nothing ->
+            [ { t | col = 0, row = 0 } ]
+
+
+{-| Lay clusters out in a horizontal row, starting at x=0, each cluster
+shifted so its left edge sits at the accumulated x position, with `spacing`
+native cells of gap between them.
+-}
+layoutClustersInRow : Float -> List (List PlacedTile) -> List PlacedTile
+layoutClustersInRow spacing clusters =
+    let
+        ( _, collected ) =
+            List.foldl
+                (\cluster ( xPos, acc ) ->
+                    case tilesBoundingBox cluster of
+                        Just bbox ->
+                            let
+                                dx =
+                                    xPos - bbox.x1
+
+                                shifted =
+                                    cluster |> List.map (\t -> { t | col = t.col + dx })
+
+                                w =
+                                    bbox.x2 - bbox.x1
+                            in
+                            ( xPos + w + spacing, acc ++ shifted )
+
+                        Nothing ->
+                            ( xPos, acc )
+                )
+                ( 0, [] )
+                clusters
+    in
+    collected
+
+
 {-| Deflation substitution: children fit inside the parent's footprint at
 scale / factor, so the replacement does not overlap the parent's neighbours.
 Parent rotation is also applied.
@@ -1267,23 +1329,28 @@ baseUpdate msg model =
 
         ApplyAll ->
             let
-                -- Each parent is replaced by its rule's children, deflated
-                -- to fit inside the parent's own footprint (scale /= factor).
-                -- Because every substitution stays within its own parent's
-                -- shape, adjacent parents can't produce overlapping children.
-                newTiles =
-                    model.placed
-                        |> List.concatMap (deflateTile model.rules model.factor)
+                -- Each parent becomes its own cluster of children at native
+                -- scale (one "super-tile"). Clusters are then laid out in a
+                -- row with a gap between them so they cannot overlap.
+                clusters =
+                    model.placed |> List.map (expandToCluster model.rules model.factor)
+
+                spacing =
+                    2.0
+
+                laidOut =
+                    layoutClustersInRow spacing clusters
 
                 ( withIds, count ) =
-                    renumber newTiles
+                    renumber laidOut
             in
-            { model
-                | placed = withIds
-                , nextId = count
-                , selectedPlaced = Nothing
-                , selectedKind = Nothing
-            }
+            recenterOnTiles
+                { model
+                    | placed = withIds
+                    , nextId = count
+                    , selectedPlaced = Nothing
+                    , selectedKind = Nothing
+                }
 
         ApplySelected ->
             case model.selectedPlaced of
