@@ -695,33 +695,40 @@ mtvToSeparate a b =
     if overlapX <= 0 || overlapY <= 0 then
         ( 0, 0 )
 
-    else if overlapX <= overlapY then
-        let
-            bCenter =
-                (b.x1 + b.x2) / 2
-
-            aCenter =
-                (a.x1 + a.x2) / 2
-        in
-        if bCenter >= aCenter then
-            ( overlapX + 0.01, 0 )
-
-        else
-            ( -(overlapX + 0.01), 0 )
-
     else
         let
-            bCenter =
-                (b.y1 + b.y2) / 2
-
-            aCenter =
-                (a.y1 + a.y2) / 2
+            -- Push by overlap + a generous buffer so bboxes end up with a
+            -- visible gap rather than just barely touching.
+            buffer =
+                2.0
         in
-        if bCenter >= aCenter then
-            ( 0, overlapY + 0.01 )
+        if overlapX <= overlapY then
+            let
+                bCenter =
+                    (b.x1 + b.x2) / 2
+
+                aCenter =
+                    (a.x1 + a.x2) / 2
+            in
+            if bCenter >= aCenter then
+                ( overlapX + buffer, 0 )
+
+            else
+                ( -(overlapX + buffer), 0 )
 
         else
-            ( 0, -(overlapY + 0.01) )
+            let
+                bCenter =
+                    (b.y1 + b.y2) / 2
+
+                aCenter =
+                    (a.y1 + a.y2) / 2
+            in
+            if bCenter >= aCenter then
+                ( 0, overlapY + buffer )
+
+            else
+                ( 0, -(overlapY + buffer) )
 
 
 shiftCluster : ( Float, Float ) -> List PlacedTile -> List PlacedTile
@@ -1544,11 +1551,6 @@ baseUpdate msg model =
         ApplyAll ->
             let
                 -- Each parent becomes one cluster with a fresh clusterId.
-                -- Children land at the rule's natural position; no automatic
-                -- fitting is done, because bbox-based shifting breaks tilings
-                -- where shapes legitimately interlock (bboxes overlap but
-                -- cells don't). Cell-level overlap is instead highlighted in
-                -- the renderer so the user can see and fix bad rules.
                 ( clusters, nextCid ) =
                     model.placed
                         |> List.foldl
@@ -1559,8 +1561,14 @@ baseUpdate msg model =
                             )
                             ( [], model.nextClusterId )
 
+                -- Use cluster bounding boxes to push overlapping clusters
+                -- apart. The user then drags each cluster back to its
+                -- interlocking position.
+                resolved =
+                    resolveClusterOverlaps clusters
+
                 newTiles =
-                    List.concat clusters
+                    List.concat resolved
 
                 ( withIds, count ) =
                     renumber newTiles
@@ -1667,13 +1675,9 @@ viewBoard model =
         , SA.class "board"
         ]
         [ background model
-        , let
-            overlapCells =
-                computeOverlapCells model.placed
-          in
-          g [ SA.transform panTransform ]
+        , g [ SA.transform panTransform ]
             (gridLines model
-                ++ List.concatMap (drawPlacedTileOnBoard overlapCells model) model.placed
+                ++ List.concatMap (drawPlacedTileOnBoard model) model.placed
             )
         ]
 
@@ -1753,18 +1757,18 @@ gridLines model =
         ++ (List.range minRow maxRow |> List.map hLine)
 
 
-drawPlacedTileOnBoard : Set ( Int, Int ) -> Model -> PlacedTile -> List (Svg Msg)
-drawPlacedTileOnBoard overlapCells model p =
+drawPlacedTileOnBoard : Model -> PlacedTile -> List (Svg Msg)
+drawPlacedTileOnBoard model p =
     case lookupSpec p.kind of
         Just spec ->
-            drawTile overlapCells model.u True (model.selectedPlaced == Just p.id) p spec
+            drawTile model.u True (model.selectedPlaced == Just p.id) p spec
 
         Nothing ->
             []
 
 
-drawTile : Set ( Int, Int ) -> Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
-drawTile overlapCells u_ onBoard isSelected p spec =
+drawTile : Int -> Bool -> Bool -> PlacedTile -> TileSpec -> List (Svg Msg)
+drawTile u_ onBoard isSelected p spec =
     let
         uf =
             toFloat u_
@@ -1780,10 +1784,6 @@ drawTile overlapCells u_ onBoard isSelected p spec =
             ( (p.col + toFloat lc * p.scale) * uf
             , (p.row + toFloat lr * p.scale) * uf
             )
-
-        -- World (Int) cell for a local cell, only meaningful at scale 1.
-        worldCellOf ( lc, lr ) =
-            ( lc + round p.col, lr + round p.row )
 
         clipId =
             "tile-clip-" ++ spec.name ++ "-" ++ String.fromInt p.id
@@ -1803,13 +1803,6 @@ drawTile overlapCells u_ onBoard isSelected p spec =
             else
                 [ SA.pointerEvents "none" ]
 
-        cellFill lc =
-            if p.scale == 1.0 && Set.member (worldCellOf lc) overlapCells then
-                "#ff3333"
-
-            else
-                spec.color
-
         cellRect lc =
             let
                 ( px, py ) =
@@ -1820,7 +1813,7 @@ drawTile overlapCells u_ onBoard isSelected p spec =
                  , SA.y (String.fromFloat py)
                  , SA.width (String.fromFloat cellSz)
                  , SA.height (String.fromFloat cellSz)
-                 , SA.fill (cellFill lc)
+                 , SA.fill spec.color
                  ]
                     ++ interaction
                 )
@@ -2061,8 +2054,7 @@ paletteEntry model spec =
             , SA.viewBox ("0 0 " ++ String.fromInt (w * pu) ++ " " ++ String.fromInt (h * pu))
             , SA.style "pointer-events: none; display: block;"
             ]
-            (drawTile Set.empty
-                pu
+            (drawTile pu
                 False
                 False
                 { id = -1, kind = spec.name, col = 0.0, row = 0.0, rotation = 0, scale = 1.0, clusterId = -1 }
