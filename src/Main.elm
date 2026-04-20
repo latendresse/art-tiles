@@ -7,7 +7,7 @@ import Dict exposing (Dict)
 import File exposing (File)
 import File.Download
 import File.Select
-import Html exposing (Html, button, div, h3, p, text)
+import Html exposing (Html, button, div, h3, input, p, text)
 import Html.Attributes as HA
 import Html.Events as HE
 import Json.Decode as D
@@ -609,22 +609,97 @@ ruleBoxDims factor kind =
             ( factor * 8, factor * 8 )
 
 
-{-| Inflation substitution: parent position scales by `factor`; each child
-lands at the rotated position within the parent's inflated footprint. The
-child's rotation gains the parent's rotation. All produced children share
-one clusterId so they can be moved together.
+{-| Compute the actual bounding box of a rule from its children's positions
+and sizes, i.e. the smallest axis-aligned box containing all children.
 -}
-expandTile : Int -> Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
-expandTile clusterId rules factor t =
+computeRuleBox : SubRule -> ( Int, Int )
+computeRuleBox rule =
     let
-        kf =
-            toFloat factor
+        extents =
+            rule.children
+                |> List.filterMap
+                    (\c ->
+                        case lookupSpec c.kind of
+                            Just spec ->
+                                let
+                                    ( nH, nW ) =
+                                        specDims spec
+
+                                    ( ew, eh ) =
+                                        effectiveDims nW nH c.rotation
+                                in
+                                Just ( c.col + ew, c.row + eh )
+
+                            Nothing ->
+                                Nothing
+                    )
+
+        maxW =
+            extents |> List.map Tuple.first |> List.maximum |> Maybe.withDefault 0
+
+        maxH =
+            extents |> List.map Tuple.second |> List.maximum |> Maybe.withDefault 0
     in
-    case Dict.get t.kind rules of
+    ( maxW, maxH )
+
+
+{-| Per-rule position scaling factor, inferred from the rule's bounding
+box divided by the parent kind's native dimensions. For the basic T rule
+(12×12 box, T native 6×6) this is 2; for T^3 (24×24), it's 4; etc.
+-}
+ruleFactor : String -> SubRule -> Int
+ruleFactor parentKind rule =
+    case lookupSpec parentKind of
+        Just spec ->
+            let
+                ( pH, pW ) =
+                    specDims spec
+
+                ( rW, rH ) =
+                    computeRuleBox rule
+
+                fw =
+                    if pW > 0 then
+                        rW // pW
+
+                    else
+                        2
+
+                fh =
+                    if pH > 0 then
+                        rH // pH
+
+                    else
+                        2
+            in
+            max 1 (max fw fh)
+
+        Nothing ->
+            2
+
+
+{-| Inflation substitution using a specific rule suffix (e.g. "" for basic,
+"^2" for level-2 etc.). Looks up "<kind>++suffix" in the rules dict. The
+factor is inferred from the rule's bounding box, so applying a bigger
+rule automatically spaces children further apart.
+-}
+expandTile : Int -> Dict String SubRule -> String -> PlacedTile -> List PlacedTile
+expandTile clusterId rules suffix t =
+    let
+        ruleKey =
+            t.kind ++ suffix
+    in
+    case Dict.get ruleKey rules of
         Just rule ->
             let
+                factor =
+                    ruleFactor t.kind rule
+
+                kf =
+                    toFloat factor
+
                 ( ruleW, ruleH ) =
-                    ruleBoxDims factor t.kind
+                    computeRuleBox rule
             in
             rule.children
                 |> List.map (rotateChild t.rotation ruleW ruleH)
@@ -641,7 +716,9 @@ expandTile clusterId rules factor t =
                     )
 
         Nothing ->
-            [ { t | col = t.col * kf, row = t.row * kf, clusterId = clusterId } ]
+            -- No rule matches; keep the tile in place, rebadged with the
+            -- new clusterId so it still behaves as a draggable unit.
+            [ { t | clusterId = clusterId } ]
 
 
 {-| Expand one parent into a cluster at native scale, positioned at the
@@ -863,19 +940,25 @@ layoutClustersInRow spacing clusters =
 
 
 {-| Deflation substitution: children fit inside the parent's footprint at
-scale / factor, so the replacement does not overlap the parent's neighbours.
-Parent rotation is also applied. All produced children share one clusterId.
+scale / factor, using the rule found under "<kind>++suffix".
 -}
-deflateTile : Int -> Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
-deflateTile clusterId rules factor t =
-    case Dict.get t.kind rules of
+deflateTile : Int -> Dict String SubRule -> String -> PlacedTile -> List PlacedTile
+deflateTile clusterId rules suffix t =
+    let
+        ruleKey =
+            t.kind ++ suffix
+    in
+    case Dict.get ruleKey rules of
         Just rule ->
             let
+                factor =
+                    ruleFactor t.kind rule
+
                 childScale =
                     t.scale / toFloat factor
 
                 ( ruleW, ruleH ) =
-                    ruleBoxDims factor t.kind
+                    computeRuleBox rule
             in
             rule.children
                 |> List.map (rotateChild t.rotation ruleW ruleH)
@@ -1126,6 +1209,8 @@ type alias Model =
     , windowH : Int
     , rules : Dict String SubRule
     , factor : Int
+    , captureName : String
+    , applySuffix : String
     }
 
 
@@ -1179,6 +1264,8 @@ init flags =
       , windowH = 800
       , rules = rules
       , factor = factor
+      , captureName = ""
+      , applySuffix = ""
       }
     , Task.perform
         (\v -> Resize (round v.viewport.width) (round v.viewport.height))
@@ -1220,6 +1307,8 @@ type Msg
     | ShowRule String
     | ApplyAll
     | ApplySelected
+    | UpdateCaptureName String
+    | UpdateApplySuffix String
 
 
 
@@ -1549,19 +1638,19 @@ baseUpdate msg model =
         ApplyAll ->
             let
                 -- Each parent becomes one cluster with a fresh clusterId.
+                -- Rule looked up by tile.kind ++ model.applySuffix, so the
+                -- same tiles can be substituted with different-level rules
+                -- ("", "^2", "^3", …) depending on suffix.
                 ( clusters, nextCid ) =
                     model.placed
                         |> List.foldl
                             (\parent ( acc, cid ) ->
-                                ( acc ++ [ expandTile cid model.rules model.factor parent ]
+                                ( acc ++ [ expandTile cid model.rules model.applySuffix parent ]
                                 , cid + 1
                                 )
                             )
                             ( [], model.nextClusterId )
 
-                -- Use cluster bounding boxes to push overlapping clusters
-                -- apart. The user then drags each cluster back to its
-                -- interlocking position.
                 resolved =
                     resolveClusterOverlaps clusters
 
@@ -1580,6 +1669,12 @@ baseUpdate msg model =
                     , selectedKind = Nothing
                 }
 
+        UpdateCaptureName n ->
+            { model | captureName = n }
+
+        UpdateApplySuffix s ->
+            { model | applySuffix = s }
+
         ApplySelected ->
             case model.selectedPlaced of
                 Nothing ->
@@ -1593,7 +1688,7 @@ baseUpdate msg model =
                                     model.nextClusterId
 
                                 children =
-                                    deflateTile cid model.rules model.factor tile
+                                    deflateTile cid model.rules model.applySuffix tile
 
                                 others =
                                     model.placed |> List.filter (\t -> t.id /= sid)
@@ -1978,6 +2073,27 @@ viewSidebar model =
             , button [ HE.onClick (ShowRule "A") ] [ text "Show A" ]
             , button [ HE.onClick (ShowRule "R") ] [ text "Show R" ]
             , button [ HE.onClick (ShowRule "T") ] [ text "Show T" ]
+            ]
+        , div [ HA.class "controls" ]
+            [ input
+                [ HA.type_ "text"
+                , HA.placeholder "rule name (e.g. T^3)"
+                , HA.value model.captureName
+                , HE.onInput UpdateCaptureName
+                ]
+                []
+            , button [ HE.onClick (CaptureRule model.captureName) ] [ text "Capture as" ]
+            , button [ HE.onClick (ShowRule model.captureName) ] [ text "Show" ]
+            ]
+        , div [ HA.class "controls" ]
+            [ input
+                [ HA.type_ "text"
+                , HA.placeholder "apply suffix (e.g. ^2)"
+                , HA.value model.applySuffix
+                , HE.onInput UpdateApplySuffix
+                , HA.style "width" "90px"
+                ]
+                []
             , button [ HE.onClick ApplyAll ] [ text "Apply all" ]
             , button [ HE.onClick ApplySelected ] [ text "Apply selected" ]
             ]
@@ -2003,25 +2119,19 @@ viewSidebar model =
 viewRulesStatus : Dict String SubRule -> Html Msg
 viewRulesStatus rules =
     let
-        row kind =
+        entries =
+            Dict.toList rules
+                |> List.sortBy Tuple.first
+
+        row ( name, rule ) =
             p [ HA.class "status" ]
-                [ text (kind ++ ": " ++ ruleSummary rules kind) ]
+                [ text (name ++ ": " ++ String.fromInt (List.length rule.children) ++ " children") ]
     in
-    div []
-        [ row "A"
-        , row "R"
-        , row "T"
-        ]
+    if List.isEmpty entries then
+        p [ HA.class "status" ] [ text "no rules captured" ]
 
-
-ruleSummary : Dict String SubRule -> String -> String
-ruleSummary rules kind =
-    case Dict.get kind rules of
-        Just rule ->
-            String.fromInt (List.length rule.children) ++ " children"
-
-        Nothing ->
-            "—"
+    else
+        div [] (List.map row entries)
 
 
 paletteEntry : Model -> TileSpec -> Html Msg

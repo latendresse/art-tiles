@@ -5619,7 +5619,7 @@ var $author$project$Main$init = function (flags) {
 	var rules = _v0.a;
 	var factor = _v0.b;
 	return _Utils_Tuple2(
-		{drag: $elm$core$Maybe$Nothing, factor: factor, nextClusterId: 0, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
+		{applySuffix: '', captureName: '', drag: $elm$core$Maybe$Nothing, factor: factor, nextClusterId: 0, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
 		A2(
 			$elm$core$Task$perform,
 			function (v) {
@@ -6325,6 +6325,56 @@ var $author$project$Main$decodeTiling = A4(
 				A2($elm$json$Json$Decode$field, 'factor', $elm$json$Json$Decode$int),
 				$elm$json$Json$Decode$succeed(2)
 			])));
+var $author$project$Main$effectiveDims = F3(
+	function (w, h, rot) {
+		return (!A2($elm$core$Basics$modBy, 2, rot)) ? _Utils_Tuple2(w, h) : _Utils_Tuple2(h, w);
+	});
+var $elm$core$List$maximum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Tuple$second = function (_v0) {
+	var y = _v0.b;
+	return y;
+};
+var $author$project$Main$computeRuleBox = function (rule) {
+	var extents = A2(
+		$elm$core$List$filterMap,
+		function (c) {
+			var _v0 = $author$project$Main$lookupSpec(c.kind);
+			if (_v0.$ === 'Just') {
+				var spec = _v0.a;
+				var _v1 = $author$project$Main$specDims(spec);
+				var nH = _v1.a;
+				var nW = _v1.b;
+				var _v2 = A3($author$project$Main$effectiveDims, nW, nH, c.rotation);
+				var ew = _v2.a;
+				var eh = _v2.b;
+				return $elm$core$Maybe$Just(
+					_Utils_Tuple2(c.col + ew, c.row + eh));
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		},
+		rule.children);
+	var maxH = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$maximum(
+			A2($elm$core$List$map, $elm$core$Tuple$second, extents)));
+	var maxW = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$maximum(
+			A2($elm$core$List$map, $elm$core$Tuple$first, extents)));
+	return _Utils_Tuple2(maxW, maxH);
+};
 var $elm$core$Dict$get = F2(
 	function (targetKey, dict) {
 		get:
@@ -6355,10 +6405,6 @@ var $elm$core$Dict$get = F2(
 				}
 			}
 		}
-	});
-var $author$project$Main$effectiveDims = F3(
-	function (w, h, rot) {
-		return (!A2($elm$core$Basics$modBy, 2, rot)) ? _Utils_Tuple2(w, h) : _Utils_Tuple2(h, w);
 	});
 var $author$project$Main$rotateChild = F4(
 	function (parentRot, ruleW, ruleH, c) {
@@ -6398,26 +6444,36 @@ var $author$project$Main$rotateChild = F4(
 			row: newRow
 		};
 	});
-var $author$project$Main$ruleBoxDims = F2(
-	function (factor, kind) {
-		var _v0 = $author$project$Main$lookupSpec(kind);
+var $author$project$Main$ruleFactor = F2(
+	function (parentKind, rule) {
+		var _v0 = $author$project$Main$lookupSpec(parentKind);
 		if (_v0.$ === 'Just') {
 			var spec = _v0.a;
-			var _v1 = $author$project$Main$specDims(spec);
-			var h = _v1.a;
-			var w = _v1.b;
-			return _Utils_Tuple2(factor * w, factor * h);
+			var _v1 = $author$project$Main$computeRuleBox(rule);
+			var rW = _v1.a;
+			var rH = _v1.b;
+			var _v2 = $author$project$Main$specDims(spec);
+			var pH = _v2.a;
+			var pW = _v2.b;
+			var fh = (pH > 0) ? ((rH / pH) | 0) : 2;
+			var fw = (pW > 0) ? ((rW / pW) | 0) : 2;
+			return A2(
+				$elm$core$Basics$max,
+				1,
+				A2($elm$core$Basics$max, fw, fh));
 		} else {
-			return _Utils_Tuple2(factor * 8, factor * 8);
+			return 2;
 		}
 	});
 var $author$project$Main$deflateTile = F4(
-	function (clusterId, rules, factor, t) {
-		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
+	function (clusterId, rules, suffix, t) {
+		var ruleKey = _Utils_ap(t.kind, suffix);
+		var _v0 = A2($elm$core$Dict$get, ruleKey, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
+			var factor = A2($author$project$Main$ruleFactor, t.kind, rule);
 			var childScale = t.scale / factor;
-			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
+			var _v1 = $author$project$Main$computeRuleBox(rule);
 			var ruleW = _v1.a;
 			var ruleH = _v1.b;
 			return A2(
@@ -6439,12 +6495,14 @@ var $author$project$Main$deflateTile = F4(
 		}
 	});
 var $author$project$Main$expandTile = F4(
-	function (clusterId, rules, factor, t) {
-		var kf = factor;
-		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
+	function (clusterId, rules, suffix, t) {
+		var ruleKey = _Utils_ap(t.kind, suffix);
+		var _v0 = A2($elm$core$Dict$get, ruleKey, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
-			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
+			var factor = A2($author$project$Main$ruleFactor, t.kind, rule);
+			var kf = factor;
+			var _v1 = $author$project$Main$computeRuleBox(rule);
 			var ruleW = _v1.a;
 			var ruleH = _v1.b;
 			return A2(
@@ -6461,7 +6519,7 @@ var $author$project$Main$expandTile = F4(
 				[
 					_Utils_update(
 					t,
-					{clusterId: clusterId, col: t.col * kf, row: t.row * kf})
+					{clusterId: clusterId})
 				]);
 		}
 	});
@@ -6561,16 +6619,6 @@ var $elm$core$List$isEmpty = function (xs) {
 		return true;
 	} else {
 		return false;
-	}
-};
-var $elm$core$List$maximum = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(
-			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
-	} else {
-		return $elm$core$Maybe$Nothing;
 	}
 };
 var $author$project$Main$minU = 8;
@@ -7489,7 +7537,7 @@ var $author$project$Main$baseUpdate = F2(
 											acc,
 											_List_fromArray(
 												[
-													A4($author$project$Main$expandTile, cid, model.rules, model.factor, parent)
+													A4($author$project$Main$expandTile, cid, model.rules, model.applySuffix, parent)
 												])),
 										cid + 1);
 								}),
@@ -7506,6 +7554,16 @@ var $author$project$Main$baseUpdate = F2(
 							_Utils_update(
 								model,
 								{nextClusterId: nextCid, nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing}));
+					case 'UpdateCaptureName':
+						var n = msg.a;
+						return _Utils_update(
+							model,
+							{captureName: n});
+					case 'UpdateApplySuffix':
+						var s = msg.a;
+						return _Utils_update(
+							model,
+							{applySuffix: s});
 					default:
 						var _v13 = model.selectedPlaced;
 						if (_v13.$ === 'Nothing') {
@@ -7528,7 +7586,7 @@ var $author$project$Main$baseUpdate = F2(
 									},
 									model.placed);
 								var cid = model.nextClusterId;
-								var children = A4($author$project$Main$deflateTile, cid, model.rules, model.factor, tile);
+								var children = A4($author$project$Main$deflateTile, cid, model.rules, model.applySuffix, tile);
 								var _v15 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
 								var withIds = _v15.a;
@@ -8143,15 +8201,43 @@ var $author$project$Main$SaveMsg = {$: 'SaveMsg'};
 var $author$project$Main$ShowRule = function (a) {
 	return {$: 'ShowRule', a: a};
 };
+var $author$project$Main$UpdateApplySuffix = function (a) {
+	return {$: 'UpdateApplySuffix', a: a};
+};
+var $author$project$Main$UpdateCaptureName = function (a) {
+	return {$: 'UpdateCaptureName', a: a};
+};
 var $author$project$Main$ZoomIn = {$: 'ZoomIn'};
 var $author$project$Main$ZoomOut = {$: 'ZoomOut'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
+var $elm$html$Html$input = _VirtualDom_node('input');
 var $elm$html$Html$Events$onClick = function (msg) {
 	return A2(
 		$elm$html$Html$Events$on,
 		'click',
 		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Events$alwaysStop = function (x) {
+	return _Utils_Tuple2(x, true);
+};
+var $elm$json$Json$Decode$at = F2(
+	function (fields, decoder) {
+		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
+	});
+var $elm$html$Html$Events$targetValue = A2(
+	$elm$json$Json$Decode$at,
+	_List_fromArray(
+		['target', 'value']),
+	$elm$json$Json$Decode$string);
+var $elm$html$Html$Events$onInput = function (tagger) {
+	return A2(
+		$elm$html$Html$Events$stopPropagationOn,
+		'input',
+		A2(
+			$elm$json$Json$Decode$map,
+			$elm$html$Html$Events$alwaysStop,
+			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
 var $elm$html$Html$p = _VirtualDom_node('p');
 var $author$project$Main$SelectKind = function (a) {
@@ -8198,20 +8284,17 @@ var $author$project$Main$paletteEntry = F2(
 						spec))
 				]));
 	});
+var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
+var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
+var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$ruleSummary = F2(
-	function (rules, kind) {
-		var _v0 = A2($elm$core$Dict$get, kind, rules);
-		if (_v0.$ === 'Just') {
-			var rule = _v0.a;
-			return $elm$core$String$fromInt(
-				$elm$core$List$length(rule.children)) + ' children';
-		} else {
-			return '—';
-		}
-	});
+var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
+var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
+var $elm$core$List$sortBy = _List_sortBy;
 var $author$project$Main$viewRulesStatus = function (rules) {
-	var row = function (kind) {
+	var row = function (_v0) {
+		var name = _v0.a;
+		var rule = _v0.b;
 		return A2(
 			$elm$html$Html$p,
 			_List_fromArray(
@@ -8221,18 +8304,27 @@ var $author$project$Main$viewRulesStatus = function (rules) {
 			_List_fromArray(
 				[
 					$elm$html$Html$text(
-					kind + (': ' + A2($author$project$Main$ruleSummary, rules, kind)))
+					name + (': ' + ($elm$core$String$fromInt(
+						$elm$core$List$length(rule.children)) + ' children')))
 				]));
 	};
-	return A2(
-		$elm$html$Html$div,
-		_List_Nil,
+	var entries = A2(
+		$elm$core$List$sortBy,
+		$elm$core$Tuple$first,
+		$elm$core$Dict$toList(rules));
+	return $elm$core$List$isEmpty(entries) ? A2(
+		$elm$html$Html$p,
 		_List_fromArray(
 			[
-				row('A'),
-				row('R'),
-				row('T')
-			]));
+				$elm$html$Html$Attributes$class('status')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text('no rules captured')
+			])) : A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		A2($elm$core$List$map, row, entries));
 };
 var $author$project$Main$viewSidebar = function (model) {
 	return A2(
@@ -8442,7 +8534,68 @@ var $author$project$Main$viewSidebar = function (model) {
 						_List_fromArray(
 							[
 								$elm$html$Html$text('Show T')
+							]))
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('controls')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$input,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$type_('text'),
+								$elm$html$Html$Attributes$placeholder('rule name (e.g. T^3)'),
+								$elm$html$Html$Attributes$value(model.captureName),
+								$elm$html$Html$Events$onInput($author$project$Main$UpdateCaptureName)
+							]),
+						_List_Nil),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$CaptureRule(model.captureName))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Capture as')
 							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$ShowRule(model.captureName))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Show')
+							]))
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('controls')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$input,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$type_('text'),
+								$elm$html$Html$Attributes$placeholder('apply suffix (e.g. ^2)'),
+								$elm$html$Html$Attributes$value(model.applySuffix),
+								$elm$html$Html$Events$onInput($author$project$Main$UpdateApplySuffix),
+								A2($elm$html$Html$Attributes$style, 'width', '90px')
+							]),
+						_List_Nil),
 						A2(
 						$elm$html$Html$button,
 						_List_fromArray(
