@@ -5619,7 +5619,7 @@ var $author$project$Main$init = function (flags) {
 	var rules = _v0.a;
 	var factor = _v0.b;
 	return _Utils_Tuple2(
-		{drag: $elm$core$Maybe$Nothing, factor: factor, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
+		{drag: $elm$core$Maybe$Nothing, factor: factor, nextClusterId: 0, nextId: 0, panX: 0, panY: 0, placed: _List_Nil, rotation: 0, rules: rules, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing, u: $author$project$Main$defaultU, windowH: 800, windowW: 1200},
 		A2(
 			$elm$core$Task$perform,
 			function (v) {
@@ -6278,13 +6278,13 @@ var $author$project$Main$SavedTiling = F3(
 	function (tiles, rules, factor) {
 		return {factor: factor, rules: rules, tiles: tiles};
 	});
-var $author$project$Main$SavedTile = F5(
-	function (kind, col, row, rotation, scale) {
-		return {col: col, kind: kind, rotation: rotation, row: row, scale: scale};
+var $author$project$Main$SavedTile = F6(
+	function (kind, col, row, rotation, scale, clusterId) {
+		return {clusterId: clusterId, col: col, kind: kind, rotation: rotation, row: row, scale: scale};
 	});
-var $elm$json$Json$Decode$map5 = _Json_map5;
-var $author$project$Main$decodeSavedTile = A6(
-	$elm$json$Json$Decode$map5,
+var $elm$json$Json$Decode$map6 = _Json_map6;
+var $author$project$Main$decodeSavedTile = A7(
+	$elm$json$Json$Decode$map6,
 	$author$project$Main$SavedTile,
 	A2($elm$json$Json$Decode$field, 'kind', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'col', $elm$json$Json$Decode$float),
@@ -6295,6 +6295,15 @@ var $author$project$Main$decodeSavedTile = A6(
 			[
 				A2($elm$json$Json$Decode$field, 'scale', $elm$json$Json$Decode$float),
 				$elm$json$Json$Decode$succeed(1.0)
+			])),
+	$elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				$elm$json$Json$Decode$map,
+				$elm$core$Maybe$Just,
+				A2($elm$json$Json$Decode$field, 'clusterId', $elm$json$Json$Decode$int)),
+				$elm$json$Json$Decode$succeed($elm$core$Maybe$Nothing)
 			])));
 var $elm$json$Json$Decode$map3 = _Json_map3;
 var $author$project$Main$decodeTiling = A4(
@@ -6402,8 +6411,8 @@ var $author$project$Main$ruleBoxDims = F2(
 			return _Utils_Tuple2(factor * 8, factor * 8);
 		}
 	});
-var $author$project$Main$deflateTile = F3(
-	function (rules, factor, t) {
+var $author$project$Main$deflateTile = F4(
+	function (clusterId, rules, factor, t) {
 		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
@@ -6414,30 +6423,7 @@ var $author$project$Main$deflateTile = F3(
 			return A2(
 				$elm$core$List$map,
 				function (c) {
-					return {col: t.col + (c.col * childScale), id: 0, kind: c.kind, rotation: c.rotation, row: t.row + (c.row * childScale), scale: childScale};
-				},
-				A2(
-					$elm$core$List$map,
-					A3($author$project$Main$rotateChild, t.rotation, ruleW, ruleH),
-					rule.children));
-		} else {
-			return _List_fromArray(
-				[t]);
-		}
-	});
-var $author$project$Main$expandTile = F3(
-	function (rules, factor, t) {
-		var kf = factor;
-		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
-		if (_v0.$ === 'Just') {
-			var rule = _v0.a;
-			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
-			var ruleW = _v1.a;
-			var ruleH = _v1.b;
-			return A2(
-				$elm$core$List$map,
-				function (c) {
-					return {col: (t.col * kf) + (c.col * t.scale), id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * kf) + (c.row * t.scale), scale: t.scale};
+					return {clusterId: clusterId, col: t.col + (c.col * childScale), id: 0, kind: c.kind, rotation: c.rotation, row: t.row + (c.row * childScale), scale: childScale};
 				},
 				A2(
 					$elm$core$List$map,
@@ -6448,7 +6434,34 @@ var $author$project$Main$expandTile = F3(
 				[
 					_Utils_update(
 					t,
-					{col: t.col * kf, row: t.row * kf})
+					{clusterId: clusterId})
+				]);
+		}
+	});
+var $author$project$Main$expandTile = F4(
+	function (clusterId, rules, factor, t) {
+		var kf = factor;
+		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
+		if (_v0.$ === 'Just') {
+			var rule = _v0.a;
+			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
+			var ruleW = _v1.a;
+			var ruleH = _v1.b;
+			return A2(
+				$elm$core$List$map,
+				function (c) {
+					return {clusterId: clusterId, col: (t.col * kf) + (c.col * t.scale), id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * kf) + (c.row * t.scale), scale: t.scale};
+				},
+				A2(
+					$elm$core$List$map,
+					A3($author$project$Main$rotateChild, t.rotation, ruleW, ruleH),
+					rule.children));
+		} else {
+			return _List_fromArray(
+				[
+					_Utils_update(
+					t,
+					{clusterId: clusterId, col: t.col * kf, row: t.row * kf})
 				]);
 		}
 	});
@@ -6550,7 +6563,20 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
+var $elm$core$List$maximum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Main$minU = 8;
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
@@ -6589,9 +6615,6 @@ var $author$project$Main$bboxesOverlap = F2(
 		return (_Utils_cmp(a.x1, b.x2) < 0) && ((_Utils_cmp(a.x2, b.x1) > 0) && ((_Utils_cmp(a.y1, b.y2) < 0) && (_Utils_cmp(a.y2, b.y1) > 0)));
 	});
 var $elm$core$Basics$ge = _Utils_ge;
-var $elm$core$Basics$negate = function (n) {
-	return -n;
-};
 var $author$project$Main$mtvToSeparate = F2(
 	function (a, b) {
 		var overlapY = A2($elm$core$Basics$min, a.y2, b.y2) - A2($elm$core$Basics$max, a.y1, b.y1);
@@ -6817,7 +6840,10 @@ var $author$project$Main$encodeTile = function (p) {
 				$elm$json$Json$Encode$int(p.rotation)),
 				_Utils_Tuple2(
 				'scale',
-				$elm$json$Json$Encode$float(p.scale))
+				$elm$json$Json$Encode$float(p.scale)),
+				_Utils_Tuple2(
+				'clusterId',
+				$elm$json$Json$Encode$int(p.clusterId))
 			]));
 };
 var $author$project$Main$encodeTiling = function (model) {
@@ -7082,7 +7108,15 @@ var $author$project$Main$saveCmd = F3(
 	});
 var $author$project$Main$savedToPlaced = F2(
 	function (id, s) {
-		return {col: s.col, id: id, kind: s.kind, rotation: s.rotation, row: s.row, scale: s.scale};
+		return {
+			clusterId: A2($elm$core$Maybe$withDefault, id, s.clusterId),
+			col: s.col,
+			id: id,
+			kind: s.kind,
+			rotation: s.rotation,
+			row: s.row,
+			scale: s.scale
+		};
 	});
 var $elm$file$File$toString = _File_toString;
 var $elm$core$Dict$filter = F2(
@@ -7167,10 +7201,11 @@ var $author$project$Main$baseUpdate = F2(
 							var worldRow = $elm$core$Basics$floor((offY / model.u) + model.panY);
 							var worldCol = $elm$core$Basics$floor((offX / model.u) + model.panX);
 							var occupied = A2($author$project$Main$allOccupiedCells, $elm$core$Maybe$Nothing, model.placed);
-							var newTile = {col: worldCol, id: model.nextId, kind: n, rotation: model.rotation, row: worldRow, scale: 1.0};
+							var newTile = {clusterId: model.nextClusterId, col: worldCol, id: model.nextId, kind: n, rotation: model.rotation, row: worldRow, scale: 1.0};
 							return A2($author$project$Main$wouldOverlap, occupied, newTile) ? model : _Utils_update(
 								model,
 								{
+									nextClusterId: model.nextClusterId + 1,
 									nextId: model.nextId + 1,
 									placed: _Utils_ap(
 										model.placed,
@@ -7201,12 +7236,26 @@ var $author$project$Main$baseUpdate = F2(
 								model.placed));
 						if (_v2.$ === 'Just') {
 							var p = _v2.a;
+							var origPositions = $elm$core$Dict$fromList(
+								A2(
+									$elm$core$List$map,
+									function (t) {
+										return _Utils_Tuple2(
+											t.id,
+											_Utils_Tuple2(t.col, t.row));
+									},
+									A2(
+										$elm$core$List$filter,
+										function (t) {
+											return _Utils_eq(t.clusterId, p.clusterId);
+										},
+										model.placed)));
 							return _Utils_update(
 								model,
 								{
 									drag: $elm$core$Maybe$Just(
 										$author$project$Main$DraggingTile(
-											{id: id, origCol: p.col, origRow: p.row, startX: cx, startY: cy})),
+											{clusterId: p.clusterId, origPositions: origPositions, startX: cx, startY: cy})),
 									selectedKind: $elm$core$Maybe$Nothing,
 									selectedPlaced: $elm$core$Maybe$Just(id)
 								});
@@ -7221,38 +7270,28 @@ var $author$project$Main$baseUpdate = F2(
 							if (_v3.a.$ === 'DraggingTile') {
 								var state = _v3.a.a;
 								var dRow = $elm$core$Basics$round((cy - state.startY) / model.u);
-								var newRow = state.origRow + dRow;
+								var dRowF = dRow;
 								var dCol = $elm$core$Basics$round((cx - state.startX) / model.u);
-								var newCol = state.origCol + dCol;
-								var _v4 = $elm$core$List$head(
-									A2(
-										$elm$core$List$filter,
-										function (p) {
-											return _Utils_eq(p.id, state.id);
-										},
-										model.placed));
-								if (_v4.$ === 'Just') {
-									var p = _v4.a;
-									var proposed = _Utils_update(
-										p,
-										{col: newCol, row: newRow});
-									var occupied = A2(
-										$author$project$Main$allOccupiedCells,
-										$elm$core$Maybe$Just(state.id),
-										model.placed);
-									return A2($author$project$Main$wouldOverlap, occupied, proposed) ? model : _Utils_update(
-										model,
-										{
-											placed: A2(
-												$elm$core$List$map,
-												function (t) {
-													return _Utils_eq(t.id, state.id) ? proposed : t;
-												},
-												model.placed)
-										});
-								} else {
-									return model;
-								}
+								var dColF = dCol;
+								var newPlaced = A2(
+									$elm$core$List$map,
+									function (t) {
+										var _v4 = A2($elm$core$Dict$get, t.id, state.origPositions);
+										if (_v4.$ === 'Just') {
+											var _v5 = _v4.a;
+											var oc = _v5.a;
+											var or_ = _v5.b;
+											return _Utils_update(
+												t,
+												{col: oc + dColF, row: or_ + dRowF});
+										} else {
+											return t;
+										}
+									},
+									model.placed);
+								return _Utils_update(
+									model,
+									{placed: newPlaced});
 							} else {
 								var state = _v3.a.a;
 								var dy = (cy - state.startY) / model.u;
@@ -7269,9 +7308,9 @@ var $author$project$Main$baseUpdate = F2(
 							model,
 							{drag: $elm$core$Maybe$Nothing});
 					case 'RotateMsg':
-						var _v5 = model.selectedPlaced;
-						if (_v5.$ === 'Just') {
-							var id = _v5.a;
+						var _v6 = model.selectedPlaced;
+						if (_v6.$ === 'Just') {
+							var id = _v6.a;
 							return _Utils_update(
 								model,
 								{
@@ -7303,9 +7342,9 @@ var $author$project$Main$baseUpdate = F2(
 								});
 						}
 					case 'DeleteMsg':
-						var _v6 = model.selectedPlaced;
-						if (_v6.$ === 'Just') {
-							var id = _v6.a;
+						var _v7 = model.selectedPlaced;
+						if (_v7.$ === 'Just') {
+							var id = _v7.a;
 							return _Utils_update(
 								model,
 								{
@@ -7358,9 +7397,9 @@ var $author$project$Main$baseUpdate = F2(
 						return model;
 					case 'LoadFileLoaded':
 						var content = msg.a;
-						var _v7 = A2($elm$json$Json$Decode$decodeString, $author$project$Main$decodeTiling, content);
-						if (_v7.$ === 'Ok') {
-							var saved = _v7.a;
+						var _v8 = A2($elm$json$Json$Decode$decodeString, $author$project$Main$decodeTiling, content);
+						if (_v8.$ === 'Ok') {
+							var saved = _v8.a;
 							var startId = model.nextId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
@@ -7370,11 +7409,22 @@ var $author$project$Main$baseUpdate = F2(
 									}),
 								saved.tiles);
 							var mergedRules = A2($elm$core$Dict$union, saved.rules, model.rules);
+							var maxCid = A2(
+								$elm$core$Maybe$withDefault,
+								-1,
+								$elm$core$List$maximum(
+									A2(
+										$elm$core$List$map,
+										function ($) {
+											return $.clusterId;
+										},
+										newTiles)));
 							return _Utils_update(
 								model,
 								{
 									drag: $elm$core$Maybe$Nothing,
 									factor: saved.factor,
+									nextClusterId: A2($elm$core$Basics$max, model.nextClusterId, maxCid + 1),
 									nextId: startId + $elm$core$List$length(saved.tiles),
 									panX: 0,
 									panY: 0,
@@ -7399,21 +7449,23 @@ var $author$project$Main$baseUpdate = F2(
 							});
 					case 'ShowRule':
 						var kind = msg.a;
-						var _v8 = A2($elm$core$Dict$get, kind, model.rules);
-						if (_v8.$ === 'Just') {
-							var rule = _v8.a;
+						var _v9 = A2($elm$core$Dict$get, kind, model.rules);
+						if (_v9.$ === 'Just') {
+							var rule = _v9.a;
 							var startId = model.nextId;
+							var cid = model.nextClusterId;
 							var newTiles = A2(
 								$elm$core$List$indexedMap,
 								F2(
 									function (i, c) {
-										return {col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
+										return {clusterId: cid, col: c.col, id: startId + i, kind: c.kind, rotation: c.rotation, row: c.row, scale: 1.0};
 									}),
 								rule.children);
 							return _Utils_update(
 								model,
 								{
 									drag: $elm$core$Maybe$Nothing,
+									nextClusterId: cid + 1,
 									nextId: startId + $elm$core$List$length(newTiles),
 									panX: 0,
 									panY: 0,
@@ -7427,48 +7479,64 @@ var $author$project$Main$baseUpdate = F2(
 								{drag: $elm$core$Maybe$Nothing, placed: _List_Nil, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 						}
 					case 'ApplyAll':
-						var clusters = A2(
-							$elm$core$List$map,
-							A2($author$project$Main$expandTile, model.rules, model.factor),
+						var _v10 = A3(
+							$elm$core$List$foldl,
+							F2(
+								function (parent, _v11) {
+									var acc = _v11.a;
+									var cid = _v11.b;
+									return _Utils_Tuple2(
+										_Utils_ap(
+											acc,
+											_List_fromArray(
+												[
+													A4($author$project$Main$expandTile, cid, model.rules, model.factor, parent)
+												])),
+										cid + 1);
+								}),
+							_Utils_Tuple2(_List_Nil, model.nextClusterId),
 							model.placed);
+						var clusters = _v10.a;
+						var nextCid = _v10.b;
 						var resolved = $author$project$Main$resolveClusterOverlaps(clusters);
 						var newTiles = $elm$core$List$concat(resolved);
-						var _v9 = $author$project$Main$renumber(newTiles);
-						var withIds = _v9.a;
-						var count = _v9.b;
+						var _v12 = $author$project$Main$renumber(newTiles);
+						var withIds = _v12.a;
+						var count = _v12.b;
 						return $author$project$Main$recenterOnTiles(
 							_Utils_update(
 								model,
-								{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing}));
+								{nextClusterId: nextCid, nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing}));
 					default:
-						var _v10 = model.selectedPlaced;
-						if (_v10.$ === 'Nothing') {
+						var _v13 = model.selectedPlaced;
+						if (_v13.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v10.a;
-							var _v11 = $elm$core$List$head(
+							var sid = _v13.a;
+							var _v14 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v11.$ === 'Just') {
-								var tile = _v11.a;
+							if (_v14.$ === 'Just') {
+								var tile = _v14.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
 										return !_Utils_eq(t.id, sid);
 									},
 									model.placed);
-								var children = A3($author$project$Main$deflateTile, model.rules, model.factor, tile);
-								var _v12 = $author$project$Main$renumber(
+								var cid = model.nextClusterId;
+								var children = A4($author$project$Main$deflateTile, cid, model.rules, model.factor, tile);
+								var _v15 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v12.a;
-								var count = _v12.b;
+								var withIds = _v15.a;
+								var count = _v15.b;
 								return _Utils_update(
 									model,
-									{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
+									{nextClusterId: cid + 1, nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 							} else {
 								return model;
 							}
@@ -8127,7 +8195,7 @@ var $author$project$Main$paletteEntry = F2(
 						pu,
 						false,
 						false,
-						{col: 0.0, id: -1, kind: spec.name, rotation: 0, row: 0.0, scale: 1.0},
+						{clusterId: -1, col: 0.0, id: -1, kind: spec.name, rotation: 0, row: 0.0, scale: 1.0},
 						spec))
 				]));
 	});

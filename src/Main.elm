@@ -568,10 +568,11 @@ ruleBoxDims factor kind =
 
 {-| Inflation substitution: parent position scales by `factor`; each child
 lands at the rotated position within the parent's inflated footprint. The
-child's rotation gains the parent's rotation.
+child's rotation gains the parent's rotation. All produced children share
+one clusterId so they can be moved together.
 -}
-expandTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
-expandTile rules factor t =
+expandTile : Int -> Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
+expandTile clusterId rules factor t =
     let
         kf =
             toFloat factor
@@ -592,19 +593,20 @@ expandTile rules factor t =
                         , row = t.row * kf + toFloat c.row * t.scale
                         , rotation = c.rotation
                         , scale = t.scale
+                        , clusterId = clusterId
                         }
                     )
 
         Nothing ->
-            [ { t | col = t.col * kf, row = t.row * kf } ]
+            [ { t | col = t.col * kf, row = t.row * kf, clusterId = clusterId } ]
 
 
 {-| Expand one parent into a cluster at native scale, positioned at the
 rule's local origin (i.e. ignoring the parent's world position). If the
 parent has no rule, the cluster is just the parent itself at origin.
 -}
-expandToCluster : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
-expandToCluster rules factor t =
+expandToCluster : Int -> Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
+expandToCluster clusterId rules factor t =
     case Dict.get t.kind rules of
         Just rule ->
             let
@@ -621,11 +623,12 @@ expandToCluster rules factor t =
                         , row = toFloat c.row
                         , rotation = c.rotation
                         , scale = t.scale
+                        , clusterId = clusterId
                         }
                     )
 
         Nothing ->
-            [ { t | col = 0, row = 0 } ]
+            [ { t | col = 0, row = 0, clusterId = clusterId } ]
 
 
 bboxesOverlap : BBox -> BBox -> Bool
@@ -813,10 +816,10 @@ layoutClustersInRow spacing clusters =
 
 {-| Deflation substitution: children fit inside the parent's footprint at
 scale / factor, so the replacement does not overlap the parent's neighbours.
-Parent rotation is also applied.
+Parent rotation is also applied. All produced children share one clusterId.
 -}
-deflateTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
-deflateTile rules factor t =
+deflateTile : Int -> Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
+deflateTile clusterId rules factor t =
     case Dict.get t.kind rules of
         Just rule ->
             let
@@ -836,11 +839,12 @@ deflateTile rules factor t =
                         , row = t.row + toFloat c.row * childScale
                         , rotation = c.rotation
                         , scale = childScale
+                        , clusterId = clusterId
                         }
                     )
 
         Nothing ->
-            [ t ]
+            [ { t | clusterId = clusterId } ]
 
 
 renumber : List PlacedTile -> ( List PlacedTile, Int )
@@ -862,6 +866,7 @@ encodeTile p =
         , ( "row", E.float p.row )
         , ( "rotation", E.int p.rotation )
         , ( "scale", E.float p.scale )
+        , ( "clusterId", E.int p.clusterId )
         ]
 
 
@@ -906,17 +911,19 @@ type alias SavedTile =
     , row : Float
     , rotation : Int
     , scale : Float
+    , clusterId : Maybe Int
     }
 
 
 decodeSavedTile : D.Decoder SavedTile
 decodeSavedTile =
-    D.map5 SavedTile
+    D.map6 SavedTile
         (D.field "kind" D.string)
         (D.field "col" D.float)
         (D.field "row" D.float)
         (D.field "rotation" D.int)
         (D.oneOf [ D.field "scale" D.float, D.succeed 1.0 ])
+        (D.oneOf [ D.field "clusterId" D.int |> D.map Just, D.succeed Nothing ])
 
 
 decodeChildTile : D.Decoder ChildTile
@@ -969,6 +976,10 @@ savedToPlaced id s =
     , row = s.row
     , rotation = s.rotation
     , scale = s.scale
+
+    -- Legacy files may not carry clusterId; give each such tile its own
+    -- singleton cluster so they don't all drag together.
+    , clusterId = Maybe.withDefault id s.clusterId
     }
 
 
@@ -1027,13 +1038,13 @@ type alias PlacedTile =
     , row : Float
     , rotation : Int
     , scale : Float
+    , clusterId : Int
     }
 
 
 type alias TileDrag =
-    { id : Int
-    , origCol : Float
-    , origRow : Float
+    { clusterId : Int
+    , origPositions : Dict Int ( Float, Float )
     , startX : Float
     , startY : Float
     }
@@ -1055,6 +1066,7 @@ type DragState
 type alias Model =
     { placed : List PlacedTile
     , nextId : Int
+    , nextClusterId : Int
     , selectedKind : Maybe String
     , selectedPlaced : Maybe Int
     , rotation : Int
@@ -1107,6 +1119,7 @@ init flags =
     in
     ( { placed = []
       , nextId = 0
+      , nextClusterId = 0
       , selectedKind = Nothing
       , selectedPlaced = Nothing
       , rotation = 0
@@ -1207,6 +1220,7 @@ baseUpdate msg model =
                             , row = toFloat worldRow
                             , rotation = model.rotation
                             , scale = 1.0
+                            , clusterId = model.nextClusterId
                             }
 
                         occupied =
@@ -1219,6 +1233,7 @@ baseUpdate msg model =
                         { model
                             | placed = model.placed ++ [ newTile ]
                             , nextId = model.nextId + 1
+                            , nextClusterId = model.nextClusterId + 1
                             , selectedPlaced = Just model.nextId
                         }
 
@@ -1239,13 +1254,21 @@ baseUpdate msg model =
         TileMouseDown id cx cy ->
             case model.placed |> List.filter (\p -> p.id == id) |> List.head of
                 Just p ->
+                    let
+                        -- Snapshot the positions of every tile in the same
+                        -- cluster so we can shift them together.
+                        origPositions =
+                            model.placed
+                                |> List.filter (\t -> t.clusterId == p.clusterId)
+                                |> List.map (\t -> ( t.id, ( t.col, t.row ) ))
+                                |> Dict.fromList
+                    in
                     { model
                         | drag =
                             Just
                                 (DraggingTile
-                                    { id = id
-                                    , origCol = p.col
-                                    , origRow = p.row
+                                    { clusterId = p.clusterId
+                                    , origPositions = origPositions
                                     , startX = cx
                                     , startY = cy
                                     }
@@ -1267,40 +1290,29 @@ baseUpdate msg model =
                         dRow =
                             round ((cy - state.startY) / toFloat model.u)
 
-                        newCol =
-                            state.origCol + toFloat dCol
+                        dColF =
+                            toFloat dCol
 
-                        newRow =
-                            state.origRow + toFloat dRow
+                        dRowF =
+                            toFloat dRow
+
+                        -- Shift every cluster member by the same delta from
+                        -- its snapshot position. Tiles outside the cluster
+                        -- are left alone. No overlap check on cluster drag
+                        -- (neighbours of a cluster are expected to coexist).
+                        newPlaced =
+                            model.placed
+                                |> List.map
+                                    (\t ->
+                                        case Dict.get t.id state.origPositions of
+                                            Just ( oc, or_ ) ->
+                                                { t | col = oc + dColF, row = or_ + dRowF }
+
+                                            Nothing ->
+                                                t
+                                    )
                     in
-                    case model.placed |> List.filter (\p -> p.id == state.id) |> List.head of
-                        Just p ->
-                            let
-                                proposed =
-                                    { p | col = newCol, row = newRow }
-
-                                occupied =
-                                    allOccupiedCells (Just state.id) model.placed
-                            in
-                            if wouldOverlap occupied proposed then
-                                model
-
-                            else
-                                { model
-                                    | placed =
-                                        model.placed
-                                            |> List.map
-                                                (\t ->
-                                                    if t.id == state.id then
-                                                        proposed
-
-                                                    else
-                                                        t
-                                                )
-                                }
-
-                        Nothing ->
-                            model
+                    { model | placed = newPlaced }
 
                 Just (DraggingPan state) ->
                     let
@@ -1405,16 +1417,20 @@ baseUpdate msg model =
                                 (\i s -> savedToPlaced (startId + i) s)
                                 saved.tiles
 
-                        -- Merge file's rules into current rules.
-                        -- Dict.union: first-arg values win on key collision, so rules
-                        -- from the loaded file take precedence, but any rule already in
-                        -- memory that isn't in the file is preserved.
+                        -- Ensure nextClusterId is past every cluster id we just loaded.
+                        maxCid =
+                            newTiles
+                                |> List.map .clusterId
+                                |> List.maximum
+                                |> Maybe.withDefault -1
+
                         mergedRules =
                             Dict.union saved.rules model.rules
                     in
                     { model
                         | placed = newTiles
                         , nextId = startId + List.length saved.tiles
+                        , nextClusterId = max model.nextClusterId (maxCid + 1)
                         , selectedPlaced = Nothing
                         , selectedKind = Nothing
                         , drag = Nothing
@@ -1446,6 +1462,9 @@ baseUpdate msg model =
                         startId =
                             model.nextId
 
+                        cid =
+                            model.nextClusterId
+
                         newTiles =
                             rule.children
                                 |> List.indexedMap
@@ -1456,12 +1475,14 @@ baseUpdate msg model =
                                         , row = toFloat c.row
                                         , rotation = c.rotation
                                         , scale = 1.0
+                                        , clusterId = cid
                                         }
                                     )
                     in
                     { model
                         | placed = newTiles
                         , nextId = startId + List.length newTiles
+                        , nextClusterId = cid + 1
                         , selectedPlaced = Nothing
                         , selectedKind = Nothing
                         , drag = Nothing
@@ -1479,15 +1500,19 @@ baseUpdate msg model =
 
         ApplyAll ->
             let
-                -- Each parent is expanded at its natural rule-hinted world
-                -- position (position × factor + child offsets with rotation).
-                -- The clusters form one super-tile per parent.
-                clusters =
+                -- Each parent becomes one cluster with a fresh clusterId, so
+                -- super-tiles can be dragged together after expansion.
+                ( clusters, nextCid ) =
                     model.placed
-                        |> List.map (expandTile model.rules model.factor)
+                        |> List.foldl
+                            (\parent ( acc, cid ) ->
+                                ( acc ++ [ expandTile cid model.rules model.factor parent ]
+                                , cid + 1
+                                )
+                            )
+                            ( [], model.nextClusterId )
 
-                -- Automatic fitting: shift overlapping clusters apart along
-                -- the minimum-translation axis, iterating until stable.
+                -- Automatic fitting: shift overlapping clusters apart.
                 resolved =
                     resolveClusterOverlaps clusters
 
@@ -1501,6 +1526,7 @@ baseUpdate msg model =
                 { model
                     | placed = withIds
                     , nextId = count
+                    , nextClusterId = nextCid
                     , selectedPlaced = Nothing
                     , selectedKind = Nothing
                 }
@@ -1514,8 +1540,11 @@ baseUpdate msg model =
                     case model.placed |> List.filter (\t -> t.id == sid) |> List.head of
                         Just tile ->
                             let
+                                cid =
+                                    model.nextClusterId
+
                                 children =
-                                    deflateTile model.rules model.factor tile
+                                    deflateTile cid model.rules model.factor tile
 
                                 others =
                                     model.placed |> List.filter (\t -> t.id /= sid)
@@ -1526,6 +1555,7 @@ baseUpdate msg model =
                             { model
                                 | placed = withIds
                                 , nextId = count
+                                , nextClusterId = cid + 1
                                 , selectedPlaced = Nothing
                                 , selectedKind = Nothing
                             }
@@ -1976,7 +2006,7 @@ paletteEntry model spec =
             (drawTile pu
                 False
                 False
-                { id = -1, kind = spec.name, col = 0.0, row = 0.0, rotation = 0, scale = 1.0 }
+                { id = -1, kind = spec.name, col = 0.0, row = 0.0, rotation = 0, scale = 1.0, clusterId = -1 }
                 spec
             )
         ]
