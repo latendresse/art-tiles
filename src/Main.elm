@@ -643,6 +643,84 @@ computeRuleBox rule =
     ( maxW, maxH )
 
 
+{-| Replace the board with the given rule's children as one cluster,
+preserving everything else. If the rule doesn't exist, clear the board.
+-}
+doShowRule : String -> Model -> Model
+doShowRule name model =
+    case Dict.get name model.rules of
+        Just rule ->
+            let
+                startId =
+                    model.nextId
+
+                cid =
+                    model.nextClusterId
+
+                newTiles =
+                    rule.children
+                        |> List.indexedMap
+                            (\i c ->
+                                { id = startId + i
+                                , kind = c.kind
+                                , col = toFloat c.col
+                                , row = toFloat c.row
+                                , rotation = c.rotation
+                                , scale = 1.0
+                                , clusterId = cid
+                                }
+                            )
+            in
+            { model
+                | placed = newTiles
+                , nextId = startId + List.length newTiles
+                , nextClusterId = cid + 1
+                , selectedPlaced = Nothing
+                , selectedKind = Nothing
+                , drag = Nothing
+                , panX = 0
+                , panY = 0
+            }
+
+        Nothing ->
+            { model
+                | placed = []
+                , selectedPlaced = Nothing
+                , selectedKind = Nothing
+                , drag = Nothing
+            }
+
+
+{-| Parse a rule name like "T^4" into ("T", 4). A bare "T" is interpreted
+as level 2 (the basic rule). Returns Nothing if the name isn't in a
+recognised shape.
+-}
+parseRuleName : String -> Maybe ( String, Int )
+parseRuleName name =
+    case String.split "^" name of
+        [ kind ] ->
+            if String.isEmpty kind then
+                Nothing
+
+            else
+                Just ( kind, 2 )
+
+        [ kind, nStr ] ->
+            case String.toInt nStr of
+                Just n ->
+                    if n >= 2 && not (String.isEmpty kind) then
+                        Just ( kind, n )
+
+                    else
+                        Nothing
+
+                Nothing ->
+                    Nothing
+
+        _ ->
+            Nothing
+
+
 {-| Per-rule position scaling factor, inferred from the rule's bounding
 box divided by the parent kind's native dimensions. For the basic T rule
 (12×12 box, T native 6×6) this is 2; for T^3 (24×24), it's 4; etc.
@@ -1309,6 +1387,7 @@ type Msg
     | ApplySelected
     | UpdateCaptureName String
     | UpdateApplySuffix String
+    | BuildRule String
 
 
 
@@ -1592,48 +1671,8 @@ baseUpdate msg model =
                             model.rules
                 }
 
-        ShowRule kind ->
-            case Dict.get kind model.rules of
-                Just rule ->
-                    let
-                        startId =
-                            model.nextId
-
-                        cid =
-                            model.nextClusterId
-
-                        newTiles =
-                            rule.children
-                                |> List.indexedMap
-                                    (\i c ->
-                                        { id = startId + i
-                                        , kind = c.kind
-                                        , col = toFloat c.col
-                                        , row = toFloat c.row
-                                        , rotation = c.rotation
-                                        , scale = 1.0
-                                        , clusterId = cid
-                                        }
-                                    )
-                    in
-                    { model
-                        | placed = newTiles
-                        , nextId = startId + List.length newTiles
-                        , nextClusterId = cid + 1
-                        , selectedPlaced = Nothing
-                        , selectedKind = Nothing
-                        , drag = Nothing
-                        , panX = 0
-                        , panY = 0
-                    }
-
-                Nothing ->
-                    { model
-                        | placed = []
-                        , selectedPlaced = Nothing
-                        , selectedKind = Nothing
-                        , drag = Nothing
-                    }
+        ShowRule name ->
+            doShowRule name model
 
         ApplyAll ->
             let
@@ -1674,6 +1713,63 @@ baseUpdate msg model =
 
         UpdateApplySuffix s ->
             { model | applySuffix = s }
+
+        BuildRule name ->
+            case parseRuleName name of
+                Just ( kind, level ) ->
+                    -- Step 1: if we already have this rule captured, just show it.
+                    case Dict.get name model.rules of
+                        Just _ ->
+                            doShowRule name model
+
+                        Nothing ->
+                            if level <= 2 then
+                                -- "T" or "T^2": basic rule, just show.
+                                doShowRule kind model
+
+                            else
+                                -- "T^N" with N > 2: load the basic rule's
+                                -- children, then substitute each tile by
+                                -- its kind^(N-1) rule. User then drags
+                                -- the clusters together and captures the
+                                -- result as "T^N".
+                                let
+                                    shown =
+                                        doShowRule kind model
+
+                                    suffix =
+                                        "^" ++ String.fromInt (level - 1)
+
+                                    ( clusters, nextCid ) =
+                                        shown.placed
+                                            |> List.foldl
+                                                (\parent ( acc, cid ) ->
+                                                    ( acc ++ [ expandTile cid shown.rules suffix parent ]
+                                                    , cid + 1
+                                                    )
+                                                )
+                                                ( [], shown.nextClusterId )
+
+                                    resolved =
+                                        resolveClusterOverlaps clusters
+
+                                    newTiles =
+                                        List.concat resolved
+
+                                    ( withIds, count ) =
+                                        renumber newTiles
+                                in
+                                recenterOnTiles
+                                    { shown
+                                        | placed = withIds
+                                        , nextId = count
+                                        , nextClusterId = nextCid
+                                        , selectedPlaced = Nothing
+                                        , selectedKind = Nothing
+                                    }
+
+                Nothing ->
+                    model
 
         ApplySelected ->
             case model.selectedPlaced of
@@ -2084,6 +2180,7 @@ viewSidebar model =
                 []
             , button [ HE.onClick (CaptureRule model.captureName) ] [ text "Capture as" ]
             , button [ HE.onClick (ShowRule model.captureName) ] [ text "Show" ]
+            , button [ HE.onClick (BuildRule model.captureName) ] [ text "Build" ]
             ]
         , div [ HA.class "controls" ]
             [ input
