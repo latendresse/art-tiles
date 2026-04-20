@@ -6425,8 +6425,9 @@ var $author$project$Main$deflateTile = F3(
 				[t]);
 		}
 	});
-var $author$project$Main$expandToCluster = F3(
+var $author$project$Main$expandTile = F3(
 	function (rules, factor, t) {
+		var kf = factor;
 		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
@@ -6436,7 +6437,7 @@ var $author$project$Main$expandToCluster = F3(
 			return A2(
 				$elm$core$List$map,
 				function (c) {
-					return {col: c.col, id: 0, kind: c.kind, rotation: c.rotation, row: c.row, scale: t.scale};
+					return {col: (t.col * kf) + (c.col * t.scale), id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * kf) + (c.row * t.scale), scale: t.scale};
 				},
 				A2(
 					$elm$core$List$map,
@@ -6447,7 +6448,7 @@ var $author$project$Main$expandToCluster = F3(
 				[
 					_Utils_update(
 					t,
-					{col: 0, row: 0})
+					{col: t.col * kf, row: t.row * kf})
 				]);
 		}
 	});
@@ -6549,39 +6550,6 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
-var $author$project$Main$layoutClustersInRow = F2(
-	function (spacing, clusters) {
-		var _v0 = A3(
-			$elm$core$List$foldl,
-			F2(
-				function (cluster, _v1) {
-					var xPos = _v1.a;
-					var acc = _v1.b;
-					var _v2 = $author$project$Main$tilesBoundingBox(cluster);
-					if (_v2.$ === 'Just') {
-						var bbox = _v2.a;
-						var w = bbox.x2 - bbox.x1;
-						var dx = xPos - bbox.x1;
-						var shifted = A2(
-							$elm$core$List$map,
-							function (t) {
-								return _Utils_update(
-									t,
-									{col: t.col + dx});
-							},
-							cluster);
-						return _Utils_Tuple2(
-							(xPos + w) + spacing,
-							_Utils_ap(acc, shifted));
-					} else {
-						return _Utils_Tuple2(xPos, acc);
-					}
-				}),
-			_Utils_Tuple2(0, _List_Nil),
-			clusters);
-		var collected = _v0.b;
-		return collected;
-	});
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
@@ -6615,6 +6583,156 @@ var $author$project$Main$renumber = function (tiles) {
 				}),
 			tiles),
 		$elm$core$List$length(tiles));
+};
+var $author$project$Main$bboxesOverlap = F2(
+	function (a, b) {
+		return (_Utils_cmp(a.x1, b.x2) < 0) && ((_Utils_cmp(a.x2, b.x1) > 0) && ((_Utils_cmp(a.y1, b.y2) < 0) && (_Utils_cmp(a.y2, b.y1) > 0)));
+	});
+var $elm$core$Basics$ge = _Utils_ge;
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $author$project$Main$mtvToSeparate = F2(
+	function (a, b) {
+		var overlapY = A2($elm$core$Basics$min, a.y2, b.y2) - A2($elm$core$Basics$max, a.y1, b.y1);
+		var overlapX = A2($elm$core$Basics$min, a.x2, b.x2) - A2($elm$core$Basics$max, a.x1, b.x1);
+		if ((overlapX <= 0) || (overlapY <= 0)) {
+			return _Utils_Tuple2(0, 0);
+		} else {
+			if (_Utils_cmp(overlapX, overlapY) < 1) {
+				var bCenter = (b.x1 + b.x2) / 2;
+				var aCenter = (a.x1 + a.x2) / 2;
+				return (_Utils_cmp(bCenter, aCenter) > -1) ? _Utils_Tuple2(overlapX + 0.01, 0) : _Utils_Tuple2(-(overlapX + 0.01), 0);
+			} else {
+				var bCenter = (b.y1 + b.y2) / 2;
+				var aCenter = (a.y1 + a.y2) / 2;
+				return (_Utils_cmp(bCenter, aCenter) > -1) ? _Utils_Tuple2(0, overlapY + 0.01) : _Utils_Tuple2(0, -(overlapY + 0.01));
+			}
+		}
+	});
+var $author$project$Main$firstOverlappingPair = function (clusters) {
+	var findAgainst = F3(
+		function (iEarly, earlier, rest) {
+			findAgainst:
+			while (true) {
+				if (!rest.b) {
+					return $elm$core$Maybe$Nothing;
+				} else {
+					var _v1 = rest.a;
+					var jLater = _v1.a;
+					var maybeBB = _v1.b;
+					var more = rest.b;
+					if (maybeBB.$ === 'Just') {
+						var bb = maybeBB.a;
+						if (A2($author$project$Main$bboxesOverlap, earlier, bb)) {
+							return $elm$core$Maybe$Just(
+								_Utils_Tuple2(
+									jLater,
+									A2($author$project$Main$mtvToSeparate, earlier, bb)));
+						} else {
+							var $temp$iEarly = iEarly,
+								$temp$earlier = earlier,
+								$temp$rest = more;
+							iEarly = $temp$iEarly;
+							earlier = $temp$earlier;
+							rest = $temp$rest;
+							continue findAgainst;
+						}
+					} else {
+						var $temp$iEarly = iEarly,
+							$temp$earlier = earlier,
+							$temp$rest = more;
+						iEarly = $temp$iEarly;
+						earlier = $temp$earlier;
+						rest = $temp$rest;
+						continue findAgainst;
+					}
+				}
+			}
+		});
+	var scan = function (items) {
+		scan:
+		while (true) {
+			if (!items.b) {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var _v4 = items.a;
+				var iEarly = _v4.a;
+				var maybeBB = _v4.b;
+				var rest = items.b;
+				if (maybeBB.$ === 'Just') {
+					var earlier = maybeBB.a;
+					var _v6 = A3(findAgainst, iEarly, earlier, rest);
+					if (_v6.$ === 'Just') {
+						var _v7 = _v6.a;
+						var jLater = _v7.a;
+						var vec = _v7.b;
+						return $elm$core$Maybe$Just(
+							_Utils_Tuple3(iEarly, jLater, vec));
+					} else {
+						var $temp$items = rest;
+						items = $temp$items;
+						continue scan;
+					}
+				} else {
+					var $temp$items = rest;
+					items = $temp$items;
+					continue scan;
+				}
+			}
+		}
+	};
+	var bboxes = A2($elm$core$List$map, $author$project$Main$tilesBoundingBox, clusters);
+	var indexed = A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, bboxes);
+	return scan(indexed);
+};
+var $author$project$Main$shiftCluster = F2(
+	function (_v0, cluster) {
+		var dx = _v0.a;
+		var dy = _v0.b;
+		return A2(
+			$elm$core$List$map,
+			function (t) {
+				return _Utils_update(
+					t,
+					{col: t.col + dx, row: t.row + dy});
+			},
+			cluster);
+	});
+var $author$project$Main$resolveClusterOverlaps = function (initial) {
+	var maxIterations = 500;
+	var loop = F2(
+		function (n, clusters) {
+			loop:
+			while (true) {
+				if (n <= 0) {
+					return clusters;
+				} else {
+					var _v0 = $author$project$Main$firstOverlappingPair(clusters);
+					if (_v0.$ === 'Nothing') {
+						return clusters;
+					} else {
+						var _v1 = _v0.a;
+						var iEarly = _v1.a;
+						var jLater = _v1.b;
+						var push = _v1.c;
+						var _v2 = _Utils_Tuple2(iEarly, jLater);
+						var $temp$n = n - 1,
+							$temp$clusters = A2(
+							$elm$core$List$indexedMap,
+							F2(
+								function (k, c) {
+									return _Utils_eq(k, jLater) ? A2($author$project$Main$shiftCluster, push, c) : c;
+								}),
+							clusters);
+						n = $temp$n;
+						clusters = $temp$clusters;
+						continue loop;
+					}
+				}
+			}
+		});
+	return A2(loop, maxIterations, initial);
 };
 var $elm$json$Json$Encode$int = _Json_wrap;
 var $elm$json$Json$Encode$object = function (pairs) {
@@ -6834,10 +6952,6 @@ var $elm$time$Time$toAdjustedMinutes = F2(
 				60000),
 			eras);
 	});
-var $elm$core$Basics$ge = _Utils_ge;
-var $elm$core$Basics$negate = function (n) {
-	return -n;
-};
 var $elm$time$Time$toCivil = function (minutes) {
 	var rawDay = A2($elm$time$Time$flooredDiv, minutes, 60 * 24) + 719468;
 	var era = (((rawDay >= 0) ? rawDay : (rawDay - 146096)) / 146097) | 0;
@@ -7313,13 +7427,13 @@ var $author$project$Main$baseUpdate = F2(
 								{drag: $elm$core$Maybe$Nothing, placed: _List_Nil, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
 						}
 					case 'ApplyAll':
-						var spacing = 2.0;
 						var clusters = A2(
 							$elm$core$List$map,
-							A2($author$project$Main$expandToCluster, model.rules, model.factor),
+							A2($author$project$Main$expandTile, model.rules, model.factor),
 							model.placed);
-						var laidOut = A2($author$project$Main$layoutClustersInRow, spacing, clusters);
-						var _v9 = $author$project$Main$renumber(laidOut);
+						var resolved = $author$project$Main$resolveClusterOverlaps(clusters);
+						var newTiles = $elm$core$List$concat(resolved);
+						var _v9 = $author$project$Main$renumber(newTiles);
 						var withIds = _v9.a;
 						var count = _v9.b;
 						return $author$project$Main$recenterOnTiles(

@@ -628,6 +628,156 @@ expandToCluster rules factor t =
             [ { t | col = 0, row = 0 } ]
 
 
+bboxesOverlap : BBox -> BBox -> Bool
+bboxesOverlap a b =
+    a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1
+
+
+{-| Minimum translation vector to separate bbox `b` from bbox `a`.
+Pushes `b` along whichever axis has the smaller overlap, away from `a`'s centre.
+Returns (0, 0) if the boxes don't overlap.
+-}
+mtvToSeparate : BBox -> BBox -> ( Float, Float )
+mtvToSeparate a b =
+    let
+        overlapX =
+            min a.x2 b.x2 - max a.x1 b.x1
+
+        overlapY =
+            min a.y2 b.y2 - max a.y1 b.y1
+    in
+    if overlapX <= 0 || overlapY <= 0 then
+        ( 0, 0 )
+
+    else if overlapX <= overlapY then
+        let
+            bCenter =
+                (b.x1 + b.x2) / 2
+
+            aCenter =
+                (a.x1 + a.x2) / 2
+        in
+        if bCenter >= aCenter then
+            ( overlapX + 0.01, 0 )
+
+        else
+            ( -(overlapX + 0.01), 0 )
+
+    else
+        let
+            bCenter =
+                (b.y1 + b.y2) / 2
+
+            aCenter =
+                (a.y1 + a.y2) / 2
+        in
+        if bCenter >= aCenter then
+            ( 0, overlapY + 0.01 )
+
+        else
+            ( 0, -(overlapY + 0.01) )
+
+
+shiftCluster : ( Float, Float ) -> List PlacedTile -> List PlacedTile
+shiftCluster ( dx, dy ) cluster =
+    cluster |> List.map (\t -> { t | col = t.col + dx, row = t.row + dy })
+
+
+{-| Repeatedly find the first overlapping pair and push the later one along
+its minimum translation axis, until no cluster pair overlaps or an iteration
+cap is hit.
+-}
+resolveClusterOverlaps : List (List PlacedTile) -> List (List PlacedTile)
+resolveClusterOverlaps initial =
+    let
+        maxIterations =
+            500
+
+        loop : Int -> List (List PlacedTile) -> List (List PlacedTile)
+        loop n clusters =
+            if n <= 0 then
+                clusters
+
+            else
+                case firstOverlappingPair clusters of
+                    Nothing ->
+                        clusters
+
+                    Just ( iEarly, jLater, push ) ->
+                        let
+                            _ =
+                                ( iEarly, jLater )
+                        in
+                        loop (n - 1)
+                            (List.indexedMap
+                                (\k c ->
+                                    if k == jLater then
+                                        shiftCluster push c
+
+                                    else
+                                        c
+                                )
+                                clusters
+                            )
+    in
+    loop maxIterations initial
+
+
+{-| Find the first (by scan order) pair of clusters whose bounding boxes
+overlap. Returns the two indices and the MTV that moves the later one
+away from the earlier one.
+-}
+firstOverlappingPair : List (List PlacedTile) -> Maybe ( Int, Int, ( Float, Float ) )
+firstOverlappingPair clusters =
+    let
+        bboxes : List (Maybe BBox)
+        bboxes =
+            List.map tilesBoundingBox clusters
+
+        indexed : List ( Int, Maybe BBox )
+        indexed =
+            List.indexedMap Tuple.pair bboxes
+
+        findAgainst : Int -> BBox -> List ( Int, Maybe BBox ) -> Maybe ( Int, ( Float, Float ) )
+        findAgainst iEarly earlier rest =
+            case rest of
+                [] ->
+                    Nothing
+
+                ( jLater, maybeBB ) :: more ->
+                    case maybeBB of
+                        Just bb ->
+                            if bboxesOverlap earlier bb then
+                                Just ( jLater, mtvToSeparate earlier bb )
+
+                            else
+                                findAgainst iEarly earlier more
+
+                        Nothing ->
+                            findAgainst iEarly earlier more
+
+        scan : List ( Int, Maybe BBox ) -> Maybe ( Int, Int, ( Float, Float ) )
+        scan items =
+            case items of
+                [] ->
+                    Nothing
+
+                ( iEarly, maybeBB ) :: rest ->
+                    case maybeBB of
+                        Just earlier ->
+                            case findAgainst iEarly earlier rest of
+                                Just ( jLater, vec ) ->
+                                    Just ( iEarly, jLater, vec )
+
+                                Nothing ->
+                                    scan rest
+
+                        Nothing ->
+                            scan rest
+    in
+    scan indexed
+
+
 {-| Lay clusters out in a horizontal row, starting at x=0, each cluster
 shifted so its left edge sits at the accumulated x position, with `spacing`
 native cells of gap between them.
@@ -1329,20 +1479,23 @@ baseUpdate msg model =
 
         ApplyAll ->
             let
-                -- Each parent becomes its own cluster of children at native
-                -- scale (one "super-tile"). Clusters are then laid out in a
-                -- row with a gap between them so they cannot overlap.
+                -- Each parent is expanded at its natural rule-hinted world
+                -- position (position × factor + child offsets with rotation).
+                -- The clusters form one super-tile per parent.
                 clusters =
-                    model.placed |> List.map (expandToCluster model.rules model.factor)
+                    model.placed
+                        |> List.map (expandTile model.rules model.factor)
 
-                spacing =
-                    2.0
+                -- Automatic fitting: shift overlapping clusters apart along
+                -- the minimum-translation axis, iterating until stable.
+                resolved =
+                    resolveClusterOverlaps clusters
 
-                laidOut =
-                    layoutClustersInRow spacing clusters
+                newTiles =
+                    List.concat resolved
 
                 ( withIds, count ) =
-                    renumber laidOut
+                    renumber newTiles
             in
             recenterOnTiles
                 { model
