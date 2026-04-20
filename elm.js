@@ -9061,7 +9061,16 @@ var $author$project$Main$viewSidebar = function (model) {
 						_List_fromArray(
 							[
 								$elm$html$Html$text('Capture T')
-							])),
+							]))
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('controls')
+					]),
+				_List_fromArray(
+					[
 						A2(
 						$elm$html$Html$button,
 						_List_fromArray(
