@@ -499,8 +499,76 @@ captureRuleFromPlaced placed =
     }
 
 
-{-| Inflation substitution: parent position scales by `factor`; each child lands at
-(t.col*k + c.col*t.scale, t.row*k + c.row*t.scale), keeping the parent's scale.
+{-| Native (effective) width/height of a tile kind at a given rotation.
+Rotations 1 and 3 swap width and height.
+-}
+effectiveDims : Int -> Int -> Int -> ( Int, Int )
+effectiveDims w h rot =
+    if modBy 2 rot == 0 then
+        ( w, h )
+
+    else
+        ( h, w )
+
+
+{-| Apply a parent rotation to a child's position and rotation, interpreting
+the child as living in a `ruleW × ruleH` rule box.
+-}
+rotateChild : Int -> Int -> Int -> ChildTile -> ChildTile
+rotateChild parentRot ruleW ruleH c =
+    let
+        ( nativeH, nativeW ) =
+            case lookupSpec c.kind of
+                Just spec ->
+                    specDims spec
+
+                Nothing ->
+                    ( 8, 8 )
+
+        ( cw, ch ) =
+            effectiveDims nativeW nativeH c.rotation
+
+        ( newCol, newRow ) =
+            case modBy 4 parentRot of
+                0 ->
+                    ( c.col, c.row )
+
+                1 ->
+                    ( ruleH - c.row - ch, c.col )
+
+                2 ->
+                    ( ruleW - c.col - cw, ruleH - c.row - ch )
+
+                _ ->
+                    ( c.row, ruleW - c.col - cw )
+    in
+    { kind = c.kind
+    , col = newCol
+    , row = newRow
+    , rotation = modBy 4 (c.rotation + parentRot)
+    }
+
+
+{-| Rule box dimensions for a parent tile kind at rotation 0:
+factor × the parent's native (W, H).
+-}
+ruleBoxDims : Int -> String -> ( Int, Int )
+ruleBoxDims factor kind =
+    case lookupSpec kind of
+        Just spec ->
+            let
+                ( h, w ) =
+                    specDims spec
+            in
+            ( factor * w, factor * h )
+
+        Nothing ->
+            ( factor * 8, factor * 8 )
+
+
+{-| Inflation substitution: parent position scales by `factor`; each child
+lands at the rotated position within the parent's inflated footprint. The
+child's rotation gains the parent's rotation.
 -}
 expandTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
 expandTile rules factor t =
@@ -510,7 +578,12 @@ expandTile rules factor t =
     in
     case Dict.get t.kind rules of
         Just rule ->
+            let
+                ( ruleW, ruleH ) =
+                    ruleBoxDims factor t.kind
+            in
             rule.children
+                |> List.map (rotateChild t.rotation ruleW ruleH)
                 |> List.map
                     (\c ->
                         { id = 0
@@ -528,6 +601,7 @@ expandTile rules factor t =
 
 {-| Deflation substitution: children fit inside the parent's footprint at
 scale / factor, so the replacement does not overlap the parent's neighbours.
+Parent rotation is also applied.
 -}
 deflateTile : Dict String SubRule -> Int -> PlacedTile -> List PlacedTile
 deflateTile rules factor t =
@@ -536,8 +610,12 @@ deflateTile rules factor t =
             let
                 childScale =
                     t.scale / toFloat factor
+
+                ( ruleW, ruleH ) =
+                    ruleBoxDims factor t.kind
             in
             rule.children
+                |> List.map (rotateChild t.rotation ruleW ruleH)
                 |> List.map
                     (\c ->
                         { id = 0

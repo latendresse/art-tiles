@@ -6352,18 +6352,79 @@ var $elm$core$Dict$get = F2(
 			}
 		}
 	});
+var $author$project$Main$effectiveDims = F3(
+	function (w, h, rot) {
+		return (!A2($elm$core$Basics$modBy, 2, rot)) ? _Utils_Tuple2(w, h) : _Utils_Tuple2(h, w);
+	});
+var $author$project$Main$rotateChild = F4(
+	function (parentRot, ruleW, ruleH, c) {
+		var _v0 = function () {
+			var _v1 = $author$project$Main$lookupSpec(c.kind);
+			if (_v1.$ === 'Just') {
+				var spec = _v1.a;
+				return $author$project$Main$specDims(spec);
+			} else {
+				return _Utils_Tuple2(8, 8);
+			}
+		}();
+		var nativeH = _v0.a;
+		var nativeW = _v0.b;
+		var _v2 = A3($author$project$Main$effectiveDims, nativeW, nativeH, c.rotation);
+		var cw = _v2.a;
+		var ch = _v2.b;
+		var _v3 = function () {
+			var _v4 = A2($elm$core$Basics$modBy, 4, parentRot);
+			switch (_v4) {
+				case 0:
+					return _Utils_Tuple2(c.col, c.row);
+				case 1:
+					return _Utils_Tuple2((ruleH - c.row) - ch, c.col);
+				case 2:
+					return _Utils_Tuple2((ruleW - c.col) - cw, (ruleH - c.row) - ch);
+				default:
+					return _Utils_Tuple2(c.row, (ruleW - c.col) - cw);
+			}
+		}();
+		var newCol = _v3.a;
+		var newRow = _v3.b;
+		return {
+			col: newCol,
+			kind: c.kind,
+			rotation: A2($elm$core$Basics$modBy, 4, c.rotation + parentRot),
+			row: newRow
+		};
+	});
+var $author$project$Main$ruleBoxDims = F2(
+	function (factor, kind) {
+		var _v0 = $author$project$Main$lookupSpec(kind);
+		if (_v0.$ === 'Just') {
+			var spec = _v0.a;
+			var _v1 = $author$project$Main$specDims(spec);
+			var h = _v1.a;
+			var w = _v1.b;
+			return _Utils_Tuple2(factor * w, factor * h);
+		} else {
+			return _Utils_Tuple2(factor * 8, factor * 8);
+		}
+	});
 var $author$project$Main$deflateTile = F3(
 	function (rules, factor, t) {
 		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
 			var childScale = t.scale / factor;
+			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
+			var ruleW = _v1.a;
+			var ruleH = _v1.b;
 			return A2(
 				$elm$core$List$map,
 				function (c) {
 					return {col: t.col + (c.col * childScale), id: 0, kind: c.kind, rotation: c.rotation, row: t.row + (c.row * childScale), scale: childScale};
 				},
-				rule.children);
+				A2(
+					$elm$core$List$map,
+					A3($author$project$Main$rotateChild, t.rotation, ruleW, ruleH),
+					rule.children));
 		} else {
 			return _List_fromArray(
 				[t]);
@@ -6375,12 +6436,18 @@ var $author$project$Main$expandTile = F3(
 		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
 		if (_v0.$ === 'Just') {
 			var rule = _v0.a;
+			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
+			var ruleW = _v1.a;
+			var ruleH = _v1.b;
 			return A2(
 				$elm$core$List$map,
 				function (c) {
 					return {col: (t.col * kf) + (c.col * t.scale), id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * kf) + (c.row * t.scale), scale: t.scale};
 				},
-				rule.children);
+				A2(
+					$elm$core$List$map,
+					A3($author$project$Main$rotateChild, t.rotation, ruleW, ruleH),
+					rule.children));
 		} else {
 			return _List_fromArray(
 				[
