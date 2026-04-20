@@ -1267,22 +1267,23 @@ baseUpdate msg model =
 
         ApplyAll ->
             let
+                -- Each parent is replaced by its rule's children, deflated
+                -- to fit inside the parent's own footprint (scale /= factor).
+                -- Because every substitution stays within its own parent's
+                -- shape, adjacent parents can't produce overlapping children.
                 newTiles =
                     model.placed
-                        |> List.concatMap (expandTile model.rules model.factor)
+                        |> List.concatMap (deflateTile model.rules model.factor)
 
                 ( withIds, count ) =
                     renumber newTiles
-
-                intermediate =
-                    { model
-                        | placed = withIds
-                        , nextId = count
-                        , selectedPlaced = Nothing
-                        , selectedKind = Nothing
-                    }
             in
-            recenterOnTiles intermediate
+            { model
+                | placed = withIds
+                , nextId = count
+                , selectedPlaced = Nothing
+                , selectedKind = Nothing
+            }
 
         ApplySelected ->
             case model.selectedPlaced of

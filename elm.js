@@ -6430,33 +6430,6 @@ var $author$project$Main$deflateTile = F3(
 				[t]);
 		}
 	});
-var $author$project$Main$expandTile = F3(
-	function (rules, factor, t) {
-		var kf = factor;
-		var _v0 = A2($elm$core$Dict$get, t.kind, rules);
-		if (_v0.$ === 'Just') {
-			var rule = _v0.a;
-			var _v1 = A2($author$project$Main$ruleBoxDims, factor, t.kind);
-			var ruleW = _v1.a;
-			var ruleH = _v1.b;
-			return A2(
-				$elm$core$List$map,
-				function (c) {
-					return {col: (t.col * kf) + (c.col * t.scale), id: 0, kind: c.kind, rotation: c.rotation, row: (t.row * kf) + (c.row * t.scale), scale: t.scale};
-				},
-				A2(
-					$elm$core$List$map,
-					A3($author$project$Main$rotateChild, t.rotation, ruleW, ruleH),
-					rule.children));
-		} else {
-			return _List_fromArray(
-				[
-					_Utils_update(
-					t,
-					{col: t.col * kf, row: t.row * kf})
-				]);
-		}
-	});
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
@@ -6559,23 +6532,6 @@ var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
-var $author$project$Main$recenterOnTiles = function (model) {
-	var _v0 = $author$project$Main$tilesBoundingBox(model.placed);
-	if (_v0.$ === 'Just') {
-		var bbox = _v0.a;
-		var vpW = ((model.windowW * 4) / 5) | 0;
-		var vpH = model.windowH;
-		var viewRows = vpH / model.u;
-		var viewCols = vpW / model.u;
-		var centerY = (bbox.y1 + bbox.y2) / 2;
-		var centerX = (bbox.x1 + bbox.x2) / 2;
-		return _Utils_update(
-			model,
-			{panX: centerX - (viewCols / 2), panY: centerY - (viewRows / 2)});
-	} else {
-		return model;
-	}
-};
 var $author$project$Main$renumber = function (tiles) {
 	return _Utils_Tuple2(
 		A2(
@@ -7288,15 +7244,14 @@ var $author$project$Main$baseUpdate = F2(
 					case 'ApplyAll':
 						var newTiles = A2(
 							$elm$core$List$concatMap,
-							A2($author$project$Main$expandTile, model.rules, model.factor),
+							A2($author$project$Main$deflateTile, model.rules, model.factor),
 							model.placed);
 						var _v9 = $author$project$Main$renumber(newTiles);
 						var withIds = _v9.a;
 						var count = _v9.b;
-						var intermediate = _Utils_update(
+						return _Utils_update(
 							model,
 							{nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
-						return $author$project$Main$recenterOnTiles(intermediate);
 					default:
 						var _v10 = model.selectedPlaced;
 						if (_v10.$ === 'Nothing') {
