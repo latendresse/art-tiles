@@ -2322,7 +2322,7 @@ paletteEntry model spec =
             specDims spec
 
         pu =
-            16
+            7
     in
     div
         [ HA.class

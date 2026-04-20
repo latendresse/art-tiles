@@ -8804,7 +8804,7 @@ var $author$project$Main$SelectKind = function (a) {
 };
 var $author$project$Main$paletteEntry = F2(
 	function (model, spec) {
-		var pu = 16;
+		var pu = 7;
 		var isSel = _Utils_eq(
 			model.selectedKind,
 			$elm$core$Maybe$Just(spec.name));
