@@ -6691,7 +6691,83 @@ var $author$project$Main$fitClusterAgainst = F3(
 			});
 		return A2(go, maxIter, cluster);
 	});
+var $elm$core$List$isEmpty = function (xs) {
+	if (!xs.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $author$project$Main$placeAdjacentTo = F4(
+	function (prevSrc, curSrc, prevCluster, curCluster) {
+		var _v0 = _Utils_Tuple2(
+			$author$project$Main$tilesBoundingBox(prevCluster),
+			$author$project$Main$tilesBoundingBox(curCluster));
+		if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'Just')) {
+			var prevBbox = _v0.a.a;
+			var curBbox = _v0.b.a;
+			var dy = curSrc.row - prevSrc.row;
+			var dx = curSrc.col - prevSrc.col;
+			var curW = curBbox.x2 - curBbox.x1;
+			var curH = curBbox.y2 - curBbox.y1;
+			var buffer = 2.0;
+			var _v1 = (_Utils_cmp(
+				$elm$core$Basics$abs(dx),
+				$elm$core$Basics$abs(dy)) > -1) ? ((dx >= 0) ? _Utils_Tuple2(prevBbox.x2 + buffer, prevBbox.y1) : _Utils_Tuple2((prevBbox.x1 - buffer) - curW, prevBbox.y1)) : ((dy >= 0) ? _Utils_Tuple2(prevBbox.x1, prevBbox.y2 + buffer) : _Utils_Tuple2(prevBbox.x1, (prevBbox.y1 - buffer) - curH));
+			var targetX = _v1.a;
+			var targetY = _v1.b;
+			var shiftX = targetX - curBbox.x1;
+			var shiftY = targetY - curBbox.y1;
+			return A2(
+				$elm$core$List$map,
+				function (t) {
+					return _Utils_update(
+						t,
+						{col: t.col + shiftX, row: t.row + shiftY});
+				},
+				curCluster);
+		} else {
+			return curCluster;
+		}
+	});
 var $elm$core$List$sortBy = _List_sortBy;
+var $author$project$Main$placeNextToClosest = F3(
+	function (source, cluster, prior) {
+		var closest = $elm$core$List$head(
+			A2(
+				$elm$core$List$sortBy,
+				function (_v2) {
+					var src = _v2.a;
+					var dy = src.row - source.row;
+					var dx = src.col - source.col;
+					return (dx * dx) + (dy * dy);
+				},
+				prior));
+		if (closest.$ === 'Just') {
+			var _v1 = closest.a;
+			var closestSrc = _v1.a;
+			var closestCluster = _v1.b;
+			return A4($author$project$Main$placeAdjacentTo, closestSrc, source, closestCluster, cluster);
+		} else {
+			return cluster;
+		}
+	});
+var $author$project$Main$shiftClusterToOrigin = function (cluster) {
+	var _v0 = $author$project$Main$tilesBoundingBox(cluster);
+	if (_v0.$ === 'Just') {
+		var bbox = _v0.a;
+		return A2(
+			$elm$core$List$map,
+			function (t) {
+				return _Utils_update(
+					t,
+					{col: t.col - bbox.x1, row: t.row - bbox.y1});
+			},
+			cluster);
+	} else {
+		return cluster;
+	}
+};
 var $author$project$Main$expandInOrderWithFit = F4(
 	function (startCid, rules, suffix, placed) {
 		var step = F2(
@@ -6699,7 +6775,8 @@ var $author$project$Main$expandInOrderWithFit = F4(
 				var acc = _v1.a;
 				var cid = _v1.b;
 				var initial = A4($author$project$Main$expandTile, cid, rules, suffix, source);
-				var fitted = A3($author$project$Main$fitClusterAgainst, source, initial, acc);
+				var positioned = $elm$core$List$isEmpty(acc) ? $author$project$Main$shiftClusterToOrigin(initial) : A3($author$project$Main$placeNextToClosest, source, initial, acc);
+				var fitted = A3($author$project$Main$fitClusterAgainst, source, positioned, acc);
 				return _Utils_Tuple2(
 					_Utils_ap(
 						acc,
@@ -6779,13 +6856,6 @@ var $elm$time$Time$Zone = F2(
 	});
 var $elm$time$Time$customZone = $elm$time$Time$Zone;
 var $elm$time$Time$here = _Time_here(_Utils_Tuple0);
-var $elm$core$List$isEmpty = function (xs) {
-	if (!xs.b) {
-		return true;
-	} else {
-		return false;
-	}
-};
 var $author$project$Main$minU = 8;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);

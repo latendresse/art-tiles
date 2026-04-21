@@ -924,11 +924,18 @@ shiftCluster ( dx, dy ) cluster =
     cluster |> List.map (\t -> { t | col = t.col + dx, row = t.row + dy })
 
 
-{-| Expand placed tiles into clusters in spatial order. Each cluster is
-placed at its natural rule-hinted position; if it overlaps a previously
-placed cluster, push it along the direction dictated by the source
-tiles' positional relationship. That way clusters preserve the
-approximate left/right, top/bottom order of their parents.
+{-| Expand placed tiles into clusters in spatial order.
+
+Place the first cluster at the world origin. For each subsequent cluster:
+find the closest already-placed source tile (by source-space distance),
+then place the new cluster's bounding box immediately adjacent to that
+prior cluster on the side dictated by the source-space direction (right
+if this source was to the right, down if below, etc.). Then iteratively
+push the cluster along the source-directed axis until it clears any
+other prior cluster. This keeps the substituted components packed close
+together while preserving the left/right/top/bottom ordering of the
+original pattern.
+
 -}
 expandInOrderWithFit : Int -> Dict String SubRule -> String -> List PlacedTile -> ( List PlacedTile, Int )
 expandInOrderWithFit startCid rules suffix placed =
@@ -942,8 +949,15 @@ expandInOrderWithFit startCid rules suffix placed =
                 initial =
                     expandTile cid rules suffix source
 
+                positioned =
+                    if List.isEmpty acc then
+                        shiftClusterToOrigin initial
+
+                    else
+                        placeNextToClosest source initial acc
+
                 fitted =
-                    fitClusterAgainst source initial acc
+                    fitClusterAgainst source positioned acc
             in
             ( acc ++ [ ( source, fitted ) ], cid + 1 )
 
@@ -954,6 +968,101 @@ expandInOrderWithFit startCid rules suffix placed =
             List.concatMap Tuple.second placedWithSource
     in
     ( tiles, finalCid )
+
+
+{-| Shift a cluster so its bounding-box top-left is at world (0, 0).
+-}
+shiftClusterToOrigin : List PlacedTile -> List PlacedTile
+shiftClusterToOrigin cluster =
+    case tilesBoundingBox cluster of
+        Just bbox ->
+            cluster
+                |> List.map (\t -> { t | col = t.col - bbox.x1, row = t.row - bbox.y1 })
+
+        Nothing ->
+            cluster
+
+
+{-| Given the current source tile and a freshly-expanded cluster, find
+the closest already-placed source tile and move the new cluster so its
+bounding box sits adjacent to that closest cluster's bbox on the side
+dictated by their source-space direction.
+-}
+placeNextToClosest : PlacedTile -> List PlacedTile -> List ( PlacedTile, List PlacedTile ) -> List PlacedTile
+placeNextToClosest source cluster prior =
+    let
+        closest =
+            prior
+                |> List.sortBy
+                    (\( src, _ ) ->
+                        let
+                            dx =
+                                src.col - source.col
+
+                            dy =
+                                src.row - source.row
+                        in
+                        dx * dx + dy * dy
+                    )
+                |> List.head
+    in
+    case closest of
+        Just ( closestSrc, closestCluster ) ->
+            placeAdjacentTo closestSrc source closestCluster cluster
+
+        Nothing ->
+            cluster
+
+
+{-| Translate `curCluster` so that its bounding box sits immediately on
+the correct side of `prevCluster`'s bounding box, with a small buffer.
+Side is chosen from the source-position vector (prevSrc -> curSrc).
+-}
+placeAdjacentTo : PlacedTile -> PlacedTile -> List PlacedTile -> List PlacedTile -> List PlacedTile
+placeAdjacentTo prevSrc curSrc prevCluster curCluster =
+    case ( tilesBoundingBox prevCluster, tilesBoundingBox curCluster ) of
+        ( Just prevBbox, Just curBbox ) ->
+            let
+                dx =
+                    curSrc.col - prevSrc.col
+
+                dy =
+                    curSrc.row - prevSrc.row
+
+                buffer =
+                    2.0
+
+                curW =
+                    curBbox.x2 - curBbox.x1
+
+                curH =
+                    curBbox.y2 - curBbox.y1
+
+                ( targetX, targetY ) =
+                    if abs dx >= abs dy then
+                        if dx >= 0 then
+                            ( prevBbox.x2 + buffer, prevBbox.y1 )
+
+                        else
+                            ( prevBbox.x1 - buffer - curW, prevBbox.y1 )
+
+                    else if dy >= 0 then
+                        ( prevBbox.x1, prevBbox.y2 + buffer )
+
+                    else
+                        ( prevBbox.x1, prevBbox.y1 - buffer - curH )
+
+                shiftX =
+                    targetX - curBbox.x1
+
+                shiftY =
+                    targetY - curBbox.y1
+            in
+            curCluster
+                |> List.map (\t -> { t | col = t.col + shiftX, row = t.row + shiftY })
+
+        _ ->
+            curCluster
 
 
 {-| Iteratively shift `cluster` until it doesn't overlap any previously
