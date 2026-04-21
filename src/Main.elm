@@ -31,7 +31,7 @@ defaultU =
 
 minU : Int
 minU =
-    8
+    1
 
 
 maxU : Int
@@ -39,9 +39,16 @@ maxU =
     60
 
 
-zoomStep : Int
-zoomStep =
-    2
+{-| Zoom step depends on current zoom: 1 px at a time in the tight
+range [1..10], 2 px at a time above that.
+-}
+zoomStep : Int -> Int
+zoomStep u =
+    if u <= 10 then
+        1
+
+    else
+        2
 
 
 {-| JS side writes the string to localStorage under a well-known key.
@@ -1871,10 +1878,10 @@ baseUpdate msg model =
             { model | windowW = w, windowH = h }
 
         ZoomIn ->
-            { model | u = min maxU (model.u + zoomStep) }
+            { model | u = min maxU (model.u + zoomStep model.u) }
 
         ZoomOut ->
-            { model | u = max minU (model.u - zoomStep) }
+            { model | u = max minU (model.u - zoomStep model.u) }
 
         ResetView ->
             { model | u = defaultU, panX = 0, panY = 0 }

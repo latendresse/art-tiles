@@ -6856,7 +6856,7 @@ var $elm$time$Time$Zone = F2(
 	});
 var $elm$time$Time$customZone = $elm$time$Time$Zone;
 var $elm$time$Time$here = _Time_here(_Utils_Tuple0);
-var $author$project$Main$minU = 8;
+var $author$project$Main$minU = 1;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
@@ -7341,7 +7341,9 @@ var $author$project$Main$wouldOverlap = F2(
 				occupied,
 				$author$project$Main$tileCells(tile)));
 	});
-var $author$project$Main$zoomStep = 2;
+var $author$project$Main$zoomStep = function (u) {
+	return (u <= 10) ? 1 : 2;
+};
 var $author$project$Main$baseUpdate = F2(
 	function (msg, model) {
 		return _Utils_Tuple2(
@@ -7538,13 +7540,19 @@ var $author$project$Main$baseUpdate = F2(
 						return _Utils_update(
 							model,
 							{
-								u: A2($elm$core$Basics$min, $author$project$Main$maxU, model.u + $author$project$Main$zoomStep)
+								u: A2(
+									$elm$core$Basics$min,
+									$author$project$Main$maxU,
+									model.u + $author$project$Main$zoomStep(model.u))
 							});
 					case 'ZoomOut':
 						return _Utils_update(
 							model,
 							{
-								u: A2($elm$core$Basics$max, $author$project$Main$minU, model.u - $author$project$Main$zoomStep)
+								u: A2(
+									$elm$core$Basics$max,
+									$author$project$Main$minU,
+									model.u - $author$project$Main$zoomStep(model.u))
 							});
 					case 'ResetView':
 						return _Utils_update(
