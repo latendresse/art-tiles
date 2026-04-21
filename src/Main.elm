@@ -924,11 +924,125 @@ shiftCluster ( dx, dy ) cluster =
     cluster |> List.map (\t -> { t | col = t.col + dx, row = t.row + dy })
 
 
+{-| Expand placed tiles into clusters in spatial order. Each cluster is
+placed at its natural rule-hinted position; if it overlaps a previously
+placed cluster, push it along the direction dictated by the source
+tiles' positional relationship. That way clusters preserve the
+approximate left/right, top/bottom order of their parents.
+-}
+expandInOrderWithFit : Int -> Dict String SubRule -> String -> List PlacedTile -> ( List PlacedTile, Int )
+expandInOrderWithFit startCid rules suffix placed =
+    let
+        ordered =
+            placed |> List.sortBy (\t -> ( t.row, t.col ))
+
+        step : PlacedTile -> ( List ( PlacedTile, List PlacedTile ), Int ) -> ( List ( PlacedTile, List PlacedTile ), Int )
+        step source ( acc, cid ) =
+            let
+                initial =
+                    expandTile cid rules suffix source
+
+                fitted =
+                    fitClusterAgainst source initial acc
+            in
+            ( acc ++ [ ( source, fitted ) ], cid + 1 )
+
+        ( placedWithSource, finalCid ) =
+            List.foldl step ( [], startCid ) ordered
+
+        tiles =
+            List.concatMap Tuple.second placedWithSource
+    in
+    ( tiles, finalCid )
+
+
+{-| Iteratively shift `cluster` until it doesn't overlap any previously
+placed cluster. Push direction is chosen from the source-tile vector.
+-}
+fitClusterAgainst : PlacedTile -> List PlacedTile -> List ( PlacedTile, List PlacedTile ) -> List PlacedTile
+fitClusterAgainst source cluster prior =
+    let
+        maxIter =
+            200
+
+        go n c =
+            if n <= 0 then
+                c
+
+            else
+                case findOverlappingPrior c prior of
+                    Nothing ->
+                        c
+
+                    Just ( prevSource, prevCluster ) ->
+                        case ( tilesBoundingBox prevCluster, tilesBoundingBox c ) of
+                            ( Just prevBbox, Just curBbox ) ->
+                                let
+                                    pushVec =
+                                        sourceDirectedPush prevSource source prevBbox curBbox
+                                in
+                                go (n - 1) (shiftCluster pushVec c)
+
+                            _ ->
+                                c
+    in
+    go maxIter cluster
+
+
+findOverlappingPrior : List PlacedTile -> List ( PlacedTile, List PlacedTile ) -> Maybe ( PlacedTile, List PlacedTile )
+findOverlappingPrior cluster prior =
+    case tilesBoundingBox cluster of
+        Nothing ->
+            Nothing
+
+        Just curBbox ->
+            prior
+                |> List.filter
+                    (\( _, pc ) ->
+                        case tilesBoundingBox pc of
+                            Just pBbox ->
+                                bboxesOverlap curBbox pBbox
+
+                            Nothing ->
+                                False
+                    )
+                |> List.head
+
+
+{-| Choose a push vector by comparing source-tile positions. If the current
+source is to the right of (or same as) the overlapped prior source, push
+right; if below, push down; etc. Magnitude clears the overlap plus a small
+buffer.
+-}
+sourceDirectedPush : PlacedTile -> PlacedTile -> BBox -> BBox -> ( Float, Float )
+sourceDirectedPush prevSrc curSrc prevBbox curBbox =
+    let
+        buffer =
+            2.0
+
+        dx =
+            curSrc.col - prevSrc.col
+
+        dy =
+            curSrc.row - prevSrc.row
+    in
+    if abs dx >= abs dy then
+        if dx >= 0 then
+            ( prevBbox.x2 - curBbox.x1 + buffer, 0 )
+
+        else
+            ( -(curBbox.x2 - prevBbox.x1 + buffer), 0 )
+
+    else if dy >= 0 then
+        ( 0, prevBbox.y2 - curBbox.y1 + buffer )
+
+    else
+        ( 0, -(curBbox.y2 - prevBbox.y1 + buffer) )
+
+
 {-| Repeatedly find the first overlapping pair and push the later one along
 its minimum translation axis, until no cluster pair overlaps or an iteration
-cap is hit. The cap is generous so the cascade of pushes from many
-newly-expanded clusters (e.g. 49 after a second substitution of T) has room
-to settle.
+cap is hit. Kept for fallback; the source-ordered fitter above is preferred.
 -}
 resolveClusterOverlaps : List (List PlacedTile) -> List (List PlacedTile)
 resolveClusterOverlaps initial =
@@ -1726,25 +1840,12 @@ baseUpdate msg model =
 
         ApplyAll ->
             let
-                -- Each parent becomes one cluster with a fresh clusterId.
-                -- Rule looked up by tile.kind ++ model.applySuffix, so the
-                -- same tiles can be substituted with different-level rules
-                -- ("", "^2", "^3", …) depending on suffix.
-                ( clusters, nextCid ) =
-                    model.placed
-                        |> List.foldl
-                            (\parent ( acc, cid ) ->
-                                ( acc ++ [ expandTile cid model.rules model.applySuffix parent ]
-                                , cid + 1
-                                )
-                            )
-                            ( [], model.nextClusterId )
-
-                resolved =
-                    resolveClusterOverlaps clusters
-
-                newTiles =
-                    List.concat resolved
+                ( newTiles, nextCid ) =
+                    expandInOrderWithFit
+                        model.nextClusterId
+                        model.rules
+                        model.applySuffix
+                        model.placed
 
                 ( withIds, count ) =
                     renumber newTiles
@@ -1780,9 +1881,10 @@ baseUpdate msg model =
                             else
                                 -- "T^N" with N > 2: load the basic rule's
                                 -- children, then substitute each tile by
-                                -- its kind^(N-1) rule. User then drags
-                                -- the clusters together and captures the
-                                -- result as "T^N".
+                                -- its kind^(N-1) rule, using the
+                                -- source-ordered fitter so clusters stay
+                                -- in roughly the spatial order of the
+                                -- parent pattern.
                                 let
                                     shown =
                                         doShowRule kind model
@@ -1790,21 +1892,12 @@ baseUpdate msg model =
                                     suffix =
                                         "^" ++ String.fromInt (level - 1)
 
-                                    ( clusters, nextCid ) =
-                                        shown.placed
-                                            |> List.foldl
-                                                (\parent ( acc, cid ) ->
-                                                    ( acc ++ [ expandTile cid shown.rules suffix parent ]
-                                                    , cid + 1
-                                                    )
-                                                )
-                                                ( [], shown.nextClusterId )
-
-                                    resolved =
-                                        resolveClusterOverlaps clusters
-
-                                    newTiles =
-                                        List.concat resolved
+                                    ( newTiles, nextCid ) =
+                                        expandInOrderWithFit
+                                            shown.nextClusterId
+                                            shown.rules
+                                            suffix
+                                            shown.placed
 
                                     ( withIds, count ) =
                                         renumber newTiles
