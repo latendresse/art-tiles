@@ -129,8 +129,8 @@ tileA =
         , { col = 5, row = 1, kind = "R" }
         , { col = 6, row = 1, kind = "T" }
         , { col = 7, row = 1, kind = "R" }
-        , { col = 6, row = 6, kind = "A" }
-        , { col = 7, row = 6, kind = "R" }
+        , { col = 5, row = 6, kind = "A" }
+        , { col = 6, row = 6, kind = "R" }
         ]
     }
 
