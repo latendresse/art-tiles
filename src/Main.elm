@@ -2000,7 +2000,11 @@ baseUpdate msg model =
                         , factor = saved.factor
                     }
 
-                Err _ ->
+                Err err ->
+                    let
+                        _ =
+                            Debug.log "LoadFileLoaded decode error" (D.errorToString err)
+                    in
                     model
 
         CaptureRule kind ->

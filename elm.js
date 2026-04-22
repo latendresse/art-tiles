@@ -6885,6 +6885,7 @@ var $elm$time$Time$Zone = F2(
 	});
 var $elm$time$Time$customZone = $elm$time$Time$Zone;
 var $elm$time$Time$here = _Time_here(_Utils_Tuple0);
+var $elm$core$Debug$log = _Debug_log;
 var $author$project$Main$minU = 1;
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
@@ -7636,6 +7637,11 @@ var $author$project$Main$baseUpdate = F2(
 									selectedPlaced: $elm$core$Maybe$Nothing
 								});
 						} else {
+							var err = _v8.a;
+							var _v9 = A2(
+								$elm$core$Debug$log,
+								'LoadFileLoaded decode error',
+								$elm$json$Json$Decode$errorToString(err));
 							return model;
 						}
 					case 'CaptureRule':
@@ -7653,12 +7659,12 @@ var $author$project$Main$baseUpdate = F2(
 						var name = msg.a;
 						return A2($author$project$Main$doShowRule, name, model);
 					case 'ApplyAll':
-						var _v9 = A4($author$project$Main$expandInOrderWithFit, model.nextClusterId, model.rules, model.applySuffix, model.placed);
-						var newTiles = _v9.a;
-						var nextCid = _v9.b;
-						var _v10 = $author$project$Main$renumber(newTiles);
-						var withIds = _v10.a;
-						var count = _v10.b;
+						var _v10 = A4($author$project$Main$expandInOrderWithFit, model.nextClusterId, model.rules, model.applySuffix, model.placed);
+						var newTiles = _v10.a;
+						var nextCid = _v10.b;
+						var _v11 = $author$project$Main$renumber(newTiles);
+						var withIds = _v11.a;
+						var count = _v11.b;
 						return $author$project$Main$recenterOnTiles(
 							_Utils_update(
 								model,
@@ -7675,13 +7681,13 @@ var $author$project$Main$baseUpdate = F2(
 							{applySuffix: s});
 					case 'BuildRule':
 						var name = msg.a;
-						var _v11 = $author$project$Main$parseRuleName(name);
-						if (_v11.$ === 'Just') {
-							var _v12 = _v11.a;
-							var kind = _v12.a;
-							var level = _v12.b;
-							var _v13 = A2($elm$core$Dict$get, name, model.rules);
-							if (_v13.$ === 'Just') {
+						var _v12 = $author$project$Main$parseRuleName(name);
+						if (_v12.$ === 'Just') {
+							var _v13 = _v12.a;
+							var kind = _v13.a;
+							var level = _v13.b;
+							var _v14 = A2($elm$core$Dict$get, name, model.rules);
+							if (_v14.$ === 'Just') {
 								return A2($author$project$Main$doShowRule, name, model);
 							} else {
 								if (level <= 2) {
@@ -7689,12 +7695,12 @@ var $author$project$Main$baseUpdate = F2(
 								} else {
 									var suffix = '^' + $elm$core$String$fromInt(level - 1);
 									var shown = A2($author$project$Main$doShowRule, kind, model);
-									var _v14 = A4($author$project$Main$expandInOrderWithFit, shown.nextClusterId, shown.rules, suffix, shown.placed);
-									var newTiles = _v14.a;
-									var nextCid = _v14.b;
-									var _v15 = $author$project$Main$renumber(newTiles);
-									var withIds = _v15.a;
-									var count = _v15.b;
+									var _v15 = A4($author$project$Main$expandInOrderWithFit, shown.nextClusterId, shown.rules, suffix, shown.placed);
+									var newTiles = _v15.a;
+									var nextCid = _v15.b;
+									var _v16 = $author$project$Main$renumber(newTiles);
+									var withIds = _v16.a;
+									var count = _v16.b;
 									return $author$project$Main$recenterOnTiles(
 										_Utils_update(
 											shown,
@@ -7705,20 +7711,20 @@ var $author$project$Main$baseUpdate = F2(
 							return model;
 						}
 					default:
-						var _v16 = model.selectedPlaced;
-						if (_v16.$ === 'Nothing') {
+						var _v17 = model.selectedPlaced;
+						if (_v17.$ === 'Nothing') {
 							return model;
 						} else {
-							var sid = _v16.a;
-							var _v17 = $elm$core$List$head(
+							var sid = _v17.a;
+							var _v18 = $elm$core$List$head(
 								A2(
 									$elm$core$List$filter,
 									function (t) {
 										return _Utils_eq(t.id, sid);
 									},
 									model.placed));
-							if (_v17.$ === 'Just') {
-								var tile = _v17.a;
+							if (_v18.$ === 'Just') {
+								var tile = _v18.a;
 								var others = A2(
 									$elm$core$List$filter,
 									function (t) {
@@ -7727,10 +7733,10 @@ var $author$project$Main$baseUpdate = F2(
 									model.placed);
 								var cid = model.nextClusterId;
 								var children = A4($author$project$Main$deflateTile, cid, model.rules, model.applySuffix, tile);
-								var _v18 = $author$project$Main$renumber(
+								var _v19 = $author$project$Main$renumber(
 									_Utils_ap(others, children));
-								var withIds = _v18.a;
-								var count = _v18.b;
+								var withIds = _v19.a;
+								var count = _v19.b;
 								return _Utils_update(
 									model,
 									{nextClusterId: cid + 1, nextId: count, placed: withIds, selectedKind: $elm$core$Maybe$Nothing, selectedPlaced: $elm$core$Maybe$Nothing});
