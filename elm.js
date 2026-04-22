@@ -6009,7 +6009,17 @@ var $author$project$Main$tileA = {
 			_Utils_Tuple2(3, 8)
 		]),
 	color: '#a4bcd9',
-	decorations: _List_Nil,
+	decorationColor: '#2e60a0',
+	decorations: _List_fromArray(
+		[
+			{col: 0, kind: 'R', row: 0},
+			{col: 0, kind: 'T', row: 1},
+			{col: 5, kind: 'R', row: 1},
+			{col: 6, kind: 'T', row: 1},
+			{col: 7, kind: 'R', row: 1},
+			{col: 6, kind: 'A', row: 6},
+			{col: 7, kind: 'R', row: 6}
+		]),
 	grid: _List_fromArray(
 		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
 	letterPos: _Utils_Tuple2(3, 4),
@@ -6028,7 +6038,17 @@ var $author$project$Main$tileR = {
 			_Utils_Tuple2(8, 4)
 		]),
 	color: '#f58686',
-	decorations: _List_Nil,
+	decorationColor: '#c81717',
+	decorations: _List_fromArray(
+		[
+			{col: 5, kind: 'T', row: 0},
+			{col: 6, kind: 'R', row: 0},
+			{col: 5, kind: 'A', row: 1},
+			{col: 6, kind: 'A', row: 1},
+			{col: 0, kind: 'R', row: 6},
+			{col: 5, kind: 'T', row: 6},
+			{col: 5, kind: 'R', row: 7}
+		]),
 	grid: _List_fromArray(
 		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
 	letterPos: _Utils_Tuple2(3, 4),
@@ -6047,6 +6067,7 @@ var $author$project$Main$tileT = {
 			_Utils_Tuple2(0, 3)
 		]),
 	color: '#99d7a0',
+	decorationColor: '#1f9a35',
 	decorations: _List_fromArray(
 		[
 			{col: 4, kind: 'T', row: 0},
@@ -8283,110 +8304,11 @@ var $author$project$Main$TileMouseDown = F3(
 	});
 var $elm$svg$Svg$clipPath = $elm$svg$Svg$trustedNode('clipPath');
 var $elm$svg$Svg$Attributes$clipPath = _VirtualDom_attribute('clip-path');
-var $elm$core$Char$toLower = _Char_toLower;
-var $author$project$Main$hexDigit = function (c) {
-	var _v0 = $elm$core$Char$toLower(c);
-	switch (_v0.valueOf()) {
-		case '0':
-			return 0;
-		case '1':
-			return 1;
-		case '2':
-			return 2;
-		case '3':
-			return 3;
-		case '4':
-			return 4;
-		case '5':
-			return 5;
-		case '6':
-			return 6;
-		case '7':
-			return 7;
-		case '8':
-			return 8;
-		case '9':
-			return 9;
-		case 'a':
-			return 10;
-		case 'b':
-			return 11;
-		case 'c':
-			return 12;
-		case 'd':
-			return 13;
-		case 'e':
-			return 14;
-		case 'f':
-			return 15;
-		default:
-			return 0;
-	}
-};
-var $author$project$Main$hexToInt = function (s) {
-	return A3(
-		$elm$core$List$foldl,
-		F2(
-			function (c, acc) {
-				return (acc * 16) + $author$project$Main$hexDigit(c);
-			}),
-		0,
-		$elm$core$String$toList(s));
-};
-var $elm$core$Char$fromCode = _Char_fromCode;
-var $author$project$Main$toHex2 = function (n) {
-	var digit = function (d) {
-		return (d < 10) ? $elm$core$String$fromChar(
-			$elm$core$Char$fromCode(
-				$elm$core$Char$toCode(
-					_Utils_chr('0')) + d)) : $elm$core$String$fromChar(
-			$elm$core$Char$fromCode(
-				($elm$core$Char$toCode(
-					_Utils_chr('a')) + d) - 10));
-	};
-	return _Utils_ap(
-		digit((n / 16) | 0),
-		digit(
-			A2($elm$core$Basics$modBy, 16, n)));
-};
-var $author$project$Main$darkenBy = F2(
-	function (factor, hex) {
-		var _v0 = $elm$core$String$uncons(hex);
-		if ((_v0.$ === 'Just') && ('#' === _v0.a.a.valueOf())) {
-			var _v1 = _v0.a;
-			var rest = _v1.b;
-			if ($elm$core$String$length(rest) === 6) {
-				var scale = function (v) {
-					return A2(
-						$elm$core$Basics$max,
-						0,
-						A2(
-							$elm$core$Basics$min,
-							255,
-							$elm$core$Basics$round(v * factor)));
-				};
-				var r = $author$project$Main$hexToInt(
-					A3($elm$core$String$slice, 0, 2, rest));
-				var g = $author$project$Main$hexToInt(
-					A3($elm$core$String$slice, 2, 4, rest));
-				var b = $author$project$Main$hexToInt(
-					A3($elm$core$String$slice, 4, 6, rest));
-				return '#' + ($author$project$Main$toHex2(
-					scale(r)) + ($author$project$Main$toHex2(
-					scale(g)) + $author$project$Main$toHex2(
-					scale(b))));
-			} else {
-				return hex;
-			}
-		} else {
-			return hex;
-		}
-	});
 var $author$project$Main$decorationColorFor = function (kind) {
 	var _v0 = $author$project$Main$lookupSpec(kind);
 	if (_v0.$ === 'Just') {
 		var spec = _v0.a;
-		return A2($author$project$Main$darkenBy, 0.7, spec.color);
+		return spec.decorationColor;
 	} else {
 		return '#000000';
 	}

@@ -3,7 +3,6 @@ port module Main exposing (main)
 import Browser
 import Browser.Dom
 import Browser.Events
-import Char
 import Dict exposing (Dict)
 import File exposing (File)
 import File.Download
@@ -89,6 +88,10 @@ type alias Decoration =
 type alias TileSpec =
     { name : String
     , color : String
+    , decorationColor : String
+
+    -- saturated colour used when something else references this kind
+    -- in its decoration list (see Decoration.kind).
     , grid : List String
     , bandPath : List ( Float, Float )
     , letterPos : ( Float, Float )
@@ -101,6 +104,7 @@ tileA : TileSpec
 tileA =
     { name = "A"
     , color = "#a4bcd9"
+    , decorationColor = "#2e60a0"
     , grid =
         [ "###....."
         , "########"
@@ -117,7 +121,17 @@ tileA =
         [ { col = 2, row = 0, dir = H }
         , { col = 7, row = 3, dir = V }
         ]
-    , decorations = []
+
+    -- (row, col) input from the user translates to (col, row) here.
+    , decorations =
+        [ { col = 0, row = 0, kind = "R" }
+        , { col = 0, row = 1, kind = "T" }
+        , { col = 5, row = 1, kind = "R" }
+        , { col = 6, row = 1, kind = "T" }
+        , { col = 7, row = 1, kind = "R" }
+        , { col = 6, row = 6, kind = "A" }
+        , { col = 7, row = 6, kind = "R" }
+        ]
     }
 
 
@@ -125,6 +139,7 @@ tileR : TileSpec
 tileR =
     { name = "R"
     , color = "#f58686"
+    , decorationColor = "#c81717"
     , grid =
         [ "...####."
         , ".######."
@@ -141,7 +156,15 @@ tileR =
         [ { col = 0, row = 4, dir = V }
         , { col = 3, row = 7, dir = H }
         ]
-    , decorations = []
+    , decorations =
+        [ { col = 5, row = 0, kind = "T" }
+        , { col = 6, row = 0, kind = "R" }
+        , { col = 5, row = 1, kind = "A" }
+        , { col = 6, row = 1, kind = "A" }
+        , { col = 0, row = 6, kind = "R" }
+        , { col = 5, row = 6, kind = "T" }
+        , { col = 5, row = 7, kind = "R" }
+        ]
     }
 
 
@@ -149,6 +172,7 @@ tileT : TileSpec
 tileT =
     { name = "T"
     , color = "#99d7a0"
+    , decorationColor = "#1f9a35"
     , grid =
         [ "..####"
         , "######"
@@ -163,8 +187,6 @@ tileT =
         [ { col = 5, row = 2, dir = V }
         , { col = 2, row = 5, dir = H }
         ]
-
-    -- (row, col) input from the user translates to (col, row) here.
     , decorations =
         [ { col = 4, row = 0, kind = "T" }
         , { col = 5, row = 0, kind = "R" }
@@ -184,123 +206,21 @@ lookupSpec name =
 
 
 
--- ============================ Color helpers ============================
+-- ============================ Decoration colour ============================
 
 
-{-| Darken a "#rrggbb" hex colour by multiplying each RGB channel by
-`factor` (0..1).
--}
-darkenBy : Float -> String -> String
-darkenBy factor hex =
-    case String.uncons hex of
-        Just ( '#', rest ) ->
-            if String.length rest == 6 then
-                let
-                    r =
-                        hexToInt (String.slice 0 2 rest)
-
-                    g =
-                        hexToInt (String.slice 2 4 rest)
-
-                    b =
-                        hexToInt (String.slice 4 6 rest)
-
-                    scale v =
-                        max 0 (min 255 (round (toFloat v * factor)))
-                in
-                "#" ++ toHex2 (scale r) ++ toHex2 (scale g) ++ toHex2 (scale b)
-
-            else
-                hex
-
-        _ ->
-            hex
-
-
-{-| Decoration colour for a given tile kind: the kind's body colour
-darkened a bit so the small square shows through the tile body.
+{-| Saturated colour to use when a tile of some kind needs to paint a
+decoration square referencing that kind. Each TileSpec carries its own
+decorationColor so the palette stays tunable per kind.
 -}
 decorationColorFor : String -> String
 decorationColorFor kind =
     case lookupSpec kind of
         Just spec ->
-            darkenBy 0.7 spec.color
+            spec.decorationColor
 
         Nothing ->
             "#000000"
-
-
-hexToInt : String -> Int
-hexToInt s =
-    s |> String.toList |> List.foldl (\c acc -> acc * 16 + hexDigit c) 0
-
-
-hexDigit : Char -> Int
-hexDigit c =
-    case Char.toLower c of
-        '0' ->
-            0
-
-        '1' ->
-            1
-
-        '2' ->
-            2
-
-        '3' ->
-            3
-
-        '4' ->
-            4
-
-        '5' ->
-            5
-
-        '6' ->
-            6
-
-        '7' ->
-            7
-
-        '8' ->
-            8
-
-        '9' ->
-            9
-
-        'a' ->
-            10
-
-        'b' ->
-            11
-
-        'c' ->
-            12
-
-        'd' ->
-            13
-
-        'e' ->
-            14
-
-        'f' ->
-            15
-
-        _ ->
-            0
-
-
-toHex2 : Int -> String
-toHex2 n =
-    let
-        digit d =
-            if d < 10 then
-                String.fromChar (Char.fromCode (Char.toCode '0' + d))
-
-            else
-                String.fromChar (Char.fromCode (Char.toCode 'a' + d - 10))
-    in
-    digit (n // 16) ++ digit (modBy 16 n)
 
 
 
