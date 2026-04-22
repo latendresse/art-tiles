@@ -519,6 +519,37 @@ tilesBoundingBox tiles =
             Nothing
 
 
+{-| Change the zoom level while keeping the viewport centre fixed in
+world coordinates (so zooming in/out doesn't shift what you're looking at).
+-}
+zoomTo : Int -> Model -> Model
+zoomTo newU model =
+    let
+        vpW =
+            toFloat (model.windowW * 4 // 5)
+
+        vpH =
+            toFloat model.windowH
+
+        oldViewCols =
+            vpW / toFloat model.u
+
+        newViewCols =
+            vpW / toFloat newU
+
+        oldViewRows =
+            vpH / toFloat model.u
+
+        newViewRows =
+            vpH / toFloat newU
+    in
+    { model
+        | u = newU
+        , panX = model.panX + (oldViewCols - newViewCols) / 2
+        , panY = model.panY + (oldViewRows - newViewRows) / 2
+    }
+
+
 {-| Pan so the tiling's bounding box is centered in the viewport, without
 changing the zoom level.
 -}
@@ -1942,10 +1973,10 @@ baseUpdate msg model =
             { model | windowW = w, windowH = h }
 
         ZoomIn ->
-            { model | u = min maxU (model.u + zoomStep model.u) }
+            zoomTo (min maxU (model.u + zoomStep model.u)) model
 
         ZoomOut ->
-            { model | u = max minU (model.u - zoomStep model.u) }
+            zoomTo (max minU (model.u - zoomStep model.u)) model
 
         ResetView ->
             { model | u = defaultU, panX = 0, panY = 0 }
@@ -1977,7 +2008,6 @@ baseUpdate msg model =
                                 (\i s -> savedToPlaced (startId + i) s)
                                 saved.tiles
 
-                        -- Ensure nextClusterId is past every cluster id we just loaded.
                         maxCid =
                             newTiles
                                 |> List.map .clusterId
@@ -1987,24 +2017,19 @@ baseUpdate msg model =
                         mergedRules =
                             Dict.union saved.rules model.rules
                     in
-                    { model
-                        | placed = newTiles
-                        , nextId = startId + List.length saved.tiles
-                        , nextClusterId = max model.nextClusterId (maxCid + 1)
-                        , selectedPlaced = Nothing
-                        , selectedKind = Nothing
-                        , drag = Nothing
-                        , panX = 0
-                        , panY = 0
-                        , rules = mergedRules
-                        , factor = saved.factor
-                    }
+                    recenterOnTiles
+                        { model
+                            | placed = newTiles
+                            , nextId = startId + List.length saved.tiles
+                            , nextClusterId = max model.nextClusterId (maxCid + 1)
+                            , selectedPlaced = Nothing
+                            , selectedKind = Nothing
+                            , drag = Nothing
+                            , rules = mergedRules
+                            , factor = saved.factor
+                        }
 
-                Err err ->
-                    let
-                        _ =
-                            Debug.log "LoadFileLoaded decode error" (D.errorToString err)
-                    in
+                Err _ ->
                     model
 
         CaptureRule kind ->
