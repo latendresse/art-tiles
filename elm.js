@@ -6009,6 +6009,7 @@ var $author$project$Main$tileA = {
 			_Utils_Tuple2(3, 8)
 		]),
 	color: '#a4bcd9',
+	decorations: _List_Nil,
 	grid: _List_fromArray(
 		['###.....', '########', '########', '########', '.######.', '.######.', '.######.', '.##.....']),
 	letterPos: _Utils_Tuple2(3, 4),
@@ -6027,6 +6028,7 @@ var $author$project$Main$tileR = {
 			_Utils_Tuple2(8, 4)
 		]),
 	color: '#f58686',
+	decorations: _List_Nil,
 	grid: _List_fromArray(
 		['...####.', '.######.', '.######.', '.######.', '########', '########', '######..', '...###..']),
 	letterPos: _Utils_Tuple2(3, 4),
@@ -6045,6 +6047,12 @@ var $author$project$Main$tileT = {
 			_Utils_Tuple2(0, 3)
 		]),
 	color: '#99d7a0',
+	decorations: _List_fromArray(
+		[
+			{col: 4, kind: 'T', row: 0},
+			{col: 5, kind: 'R', row: 0},
+			{col: 4, kind: 'R', row: 5}
+		]),
 	grid: _List_fromArray(
 		['..####', '######', '######', '.####.', '.####.', '..###.']),
 	letterPos: _Utils_Tuple2(2, 3),
@@ -8275,6 +8283,114 @@ var $author$project$Main$TileMouseDown = F3(
 	});
 var $elm$svg$Svg$clipPath = $elm$svg$Svg$trustedNode('clipPath');
 var $elm$svg$Svg$Attributes$clipPath = _VirtualDom_attribute('clip-path');
+var $elm$core$Char$toLower = _Char_toLower;
+var $author$project$Main$hexDigit = function (c) {
+	var _v0 = $elm$core$Char$toLower(c);
+	switch (_v0.valueOf()) {
+		case '0':
+			return 0;
+		case '1':
+			return 1;
+		case '2':
+			return 2;
+		case '3':
+			return 3;
+		case '4':
+			return 4;
+		case '5':
+			return 5;
+		case '6':
+			return 6;
+		case '7':
+			return 7;
+		case '8':
+			return 8;
+		case '9':
+			return 9;
+		case 'a':
+			return 10;
+		case 'b':
+			return 11;
+		case 'c':
+			return 12;
+		case 'd':
+			return 13;
+		case 'e':
+			return 14;
+		case 'f':
+			return 15;
+		default:
+			return 0;
+	}
+};
+var $author$project$Main$hexToInt = function (s) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (c, acc) {
+				return (acc * 16) + $author$project$Main$hexDigit(c);
+			}),
+		0,
+		$elm$core$String$toList(s));
+};
+var $elm$core$Char$fromCode = _Char_fromCode;
+var $author$project$Main$toHex2 = function (n) {
+	var digit = function (d) {
+		return (d < 10) ? $elm$core$String$fromChar(
+			$elm$core$Char$fromCode(
+				$elm$core$Char$toCode(
+					_Utils_chr('0')) + d)) : $elm$core$String$fromChar(
+			$elm$core$Char$fromCode(
+				($elm$core$Char$toCode(
+					_Utils_chr('a')) + d) - 10));
+	};
+	return _Utils_ap(
+		digit((n / 16) | 0),
+		digit(
+			A2($elm$core$Basics$modBy, 16, n)));
+};
+var $author$project$Main$darkenBy = F2(
+	function (factor, hex) {
+		var _v0 = $elm$core$String$uncons(hex);
+		if ((_v0.$ === 'Just') && ('#' === _v0.a.a.valueOf())) {
+			var _v1 = _v0.a;
+			var rest = _v1.b;
+			if ($elm$core$String$length(rest) === 6) {
+				var scale = function (v) {
+					return A2(
+						$elm$core$Basics$max,
+						0,
+						A2(
+							$elm$core$Basics$min,
+							255,
+							$elm$core$Basics$round(v * factor)));
+				};
+				var r = $author$project$Main$hexToInt(
+					A3($elm$core$String$slice, 0, 2, rest));
+				var g = $author$project$Main$hexToInt(
+					A3($elm$core$String$slice, 2, 4, rest));
+				var b = $author$project$Main$hexToInt(
+					A3($elm$core$String$slice, 4, 6, rest));
+				return '#' + ($author$project$Main$toHex2(
+					scale(r)) + ($author$project$Main$toHex2(
+					scale(g)) + $author$project$Main$toHex2(
+					scale(b))));
+			} else {
+				return hex;
+			}
+		} else {
+			return hex;
+		}
+	});
+var $author$project$Main$decorationColorFor = function (kind) {
+	var _v0 = $author$project$Main$lookupSpec(kind);
+	if (_v0.$ === 'Just') {
+		var spec = _v0.a;
+		return A2($author$project$Main$darkenBy, 0.7, spec.color);
+	} else {
+		return '#000000';
+	}
+};
 var $elm$svg$Svg$defs = $elm$svg$Svg$trustedNode('defs');
 var $elm$svg$Svg$Attributes$dominantBaseline = _VirtualDom_attribute('dominant-baseline');
 var $elm$svg$Svg$Attributes$fontFamily = _VirtualDom_attribute('font-family');
@@ -8417,9 +8533,9 @@ var $author$project$Main$drawTile = F6(
 				' ',
 				A2(
 					$elm$core$List$map,
-					function (_v6) {
-						var x = _v6.a;
-						var y = _v6.b;
+					function (_v8) {
+						var x = _v8.a;
+						var y = _v8.b;
 						return $elm$core$String$fromFloat(x * uf) + (',' + $elm$core$String$fromFloat(y * uf));
 					},
 					path));
@@ -8436,9 +8552,9 @@ var $author$project$Main$drawTile = F6(
 		var clipId = 'tile-clip-' + (spec.name + ('-' + $elm$core$String$fromInt(p.id)));
 		var cellSz = p.scale * uf;
 		var letter = function () {
-			var _v5 = A2($author$project$Main$placedLetterPos, p, spec);
-			var lx = _v5.a;
-			var ly = _v5.b;
+			var _v7 = A2($author$project$Main$placedLetterPos, p, spec);
+			var lx = _v7.a;
+			var ly = _v7.b;
 			var lxPx = lx * uf;
 			var lyPx = ly * uf;
 			var rotTransform = 'rotate(' + ($elm$core$String$fromInt(p.rotation * 90) + (' ' + ($elm$core$String$fromFloat(lxPx) + (' ' + ($elm$core$String$fromFloat(lyPx) + ')')))));
@@ -8486,15 +8602,15 @@ var $author$project$Main$drawTile = F6(
 					_List_Nil);
 			},
 			A2($author$project$Main$placedMarkerPaths, p, spec));
-		var cellPx = function (_v4) {
-			var lc = _v4.a;
-			var lr = _v4.b;
+		var cellPx = function (_v6) {
+			var lc = _v6.a;
+			var lr = _v6.b;
 			return _Utils_Tuple2((p.col + (lc * p.scale)) * uf, (p.row + (lr * p.scale)) * uf);
 		};
 		var cellRect = function (lc) {
-			var _v3 = cellPx(lc);
-			var px = _v3.a;
-			var py = _v3.b;
+			var _v5 = cellPx(lc);
+			var px = _v5.a;
+			var py = _v5.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_Utils_ap(
@@ -8514,9 +8630,9 @@ var $author$project$Main$drawTile = F6(
 				_List_Nil);
 		};
 		var clipRect = function (lc) {
-			var _v2 = cellPx(lc);
-			var px = _v2.a;
-			var py = _v2.b;
+			var _v4 = cellPx(lc);
+			var px = _v4.a;
+			var py = _v4.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_List_fromArray(
@@ -8545,6 +8661,39 @@ var $author$project$Main$drawTile = F6(
 						]),
 					A2($elm$core$List$map, clipRect, localCells))
 				]));
+		var decorationList = A2(
+			$elm$core$List$map,
+			function (d) {
+				var _v2 = A3(
+					$author$project$Main$rotateCell,
+					p.rotation,
+					$author$project$Main$specDims(spec),
+					_Utils_Tuple2(d.col, d.row));
+				var rotC = _v2.a;
+				var rotR = _v2.b;
+				var _v3 = cellPx(
+					_Utils_Tuple2(rotC, rotR));
+				var px = _v3.a;
+				var py = _v3.b;
+				return A2(
+					$elm$svg$Svg$rect,
+					_List_fromArray(
+						[
+							$elm$svg$Svg$Attributes$x(
+							$elm$core$String$fromFloat(px)),
+							$elm$svg$Svg$Attributes$y(
+							$elm$core$String$fromFloat(py)),
+							$elm$svg$Svg$Attributes$width(
+							$elm$core$String$fromFloat(cellSz)),
+							$elm$svg$Svg$Attributes$height(
+							$elm$core$String$fromFloat(cellSz)),
+							$elm$svg$Svg$Attributes$fill(
+							$author$project$Main$decorationColorFor(d.kind)),
+							$elm$svg$Svg$Attributes$pointerEvents('none')
+						]),
+					_List_Nil);
+			},
+			spec.decorations);
 		var overlapHighlight = (isOverlapping && onBoard) ? A2(
 			$elm$core$List$map,
 			function (lc) {
@@ -8629,11 +8778,13 @@ var $author$project$Main$drawTile = F6(
 					_Utils_ap(
 						markerList,
 						_Utils_ap(
-							selection,
+							decorationList,
 							_Utils_ap(
-								overlapHighlight,
-								_List_fromArray(
-									[letter])))))));
+								selection,
+								_Utils_ap(
+									overlapHighlight,
+									_List_fromArray(
+										[letter]))))))));
 	});
 var $elm$core$Set$member = F2(
 	function (key, _v0) {
