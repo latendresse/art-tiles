@@ -2324,6 +2324,9 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
         localCells =
             specCellsRotated p.rotation spec
 
+        localCellSet =
+            Set.fromList localCells
+
         -- Screen top-left (px) for a local tile cell (lc, lr).
         cellPx ( lc, lr ) =
             ( (p.col + toFloat lc * p.scale) * uf
@@ -2453,6 +2456,68 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
                             []
                     )
 
+        -- Black 1-px contour around the tile's filled cells. Emitted only
+        -- when zoom is generous enough to resolve it (u >= 8). Drawn per
+        -- cell edge that isn't shared with another filled cell in the
+        -- same tile.
+        contourList =
+            if onBoard && u_ >= 8 then
+                let
+                    edgeLine x1 y1 x2 y2 =
+                        line
+                            [ SA.x1 (String.fromFloat x1)
+                            , SA.y1 (String.fromFloat y1)
+                            , SA.x2 (String.fromFloat x2)
+                            , SA.y2 (String.fromFloat y2)
+                            , SA.stroke "#000000"
+                            , SA.strokeWidth "1"
+                            , SA.pointerEvents "none"
+                            ]
+                            []
+                in
+                localCells
+                    |> List.concatMap
+                        (\lc ->
+                            let
+                                ( lcC, lcR ) =
+                                    lc
+
+                                ( px, py ) =
+                                    cellPx lc
+
+                                px2 =
+                                    px + cellSz
+
+                                py2 =
+                                    py + cellSz
+                            in
+                            List.filterMap identity
+                                [ if Set.member ( lcC, lcR - 1 ) localCellSet then
+                                    Nothing
+
+                                  else
+                                    Just (edgeLine px py px2 py)
+                                , if Set.member ( lcC, lcR + 1 ) localCellSet then
+                                    Nothing
+
+                                  else
+                                    Just (edgeLine px py2 px2 py2)
+                                , if Set.member ( lcC - 1, lcR ) localCellSet then
+                                    Nothing
+
+                                  else
+                                    Just (edgeLine px py px py2)
+                                , if Set.member ( lcC + 1, lcR ) localCellSet then
+                                    Nothing
+
+                                  else
+                                    Just (edgeLine px2 py px2 py2)
+                                ]
+                        )
+
+            else
+                []
+
         selection =
             if isSelected then
                 localCells
@@ -2538,7 +2603,7 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ decorationList ++ selection ++ overlapHighlight ++ [ letter ]
+    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ decorationList ++ contourList ++ selection ++ overlapHighlight ++ [ letter ]
 
 
 

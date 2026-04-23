@@ -8309,6 +8309,12 @@ var $elm$svg$Svg$Attributes$fontStyle = _VirtualDom_attribute('font-style');
 var $elm$svg$Svg$Attributes$fontWeight = _VirtualDom_attribute('font-weight');
 var $elm$core$String$fromFloat = _String_fromNumber;
 var $elm$svg$Svg$Attributes$id = _VirtualDom_attribute('id');
+var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0;
+		return A2($elm$core$Dict$member, key, dict);
+	});
 var $author$project$Main$rotatePoint = F3(
 	function (k, _v0, _v1) {
 		var h = _v0.a;
@@ -8421,6 +8427,10 @@ var $elm$svg$Svg$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$svg$Svg$Attributes$textAnchor = _VirtualDom_attribute('text-anchor');
 var $elm$svg$Svg$text_ = $elm$svg$Svg$trustedNode('text');
 var $elm$svg$Svg$Attributes$transform = _VirtualDom_attribute('transform');
+var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
+var $elm$svg$Svg$Attributes$x2 = _VirtualDom_attribute('x2');
+var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
+var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
 var $author$project$Main$drawTile = F6(
 	function (isOverlapping, u_, onBoard, isSelected, p, spec) {
 		var uf = u_;
@@ -8443,14 +8453,15 @@ var $author$project$Main$drawTile = F6(
 				' ',
 				A2(
 					$elm$core$List$map,
-					function (_v8) {
-						var x = _v8.a;
-						var y = _v8.b;
+					function (_v10) {
+						var x = _v10.a;
+						var y = _v10.b;
 						return $elm$core$String$fromFloat(x * uf) + (',' + $elm$core$String$fromFloat(y * uf));
 					},
 					path));
 		};
 		var localCells = A2($author$project$Main$specCellsRotated, p.d, spec);
+		var localCellSet = $elm$core$Set$fromList(localCells);
 		var interaction = onBoard ? _List_fromArray(
 			[
 				$elm$svg$Svg$Attributes$style('cursor:move;'),
@@ -8462,9 +8473,9 @@ var $author$project$Main$drawTile = F6(
 		var clipId = 'tile-clip-' + (spec.E + ('-' + $elm$core$String$fromInt(p.k)));
 		var cellSz = p.g * uf;
 		var letter = function () {
-			var _v7 = A2($author$project$Main$placedLetterPos, p, spec);
-			var lx = _v7.a;
-			var ly = _v7.b;
+			var _v9 = A2($author$project$Main$placedLetterPos, p, spec);
+			var lx = _v9.a;
+			var ly = _v9.b;
 			var lxPx = lx * uf;
 			var lyPx = ly * uf;
 			var rotTransform = 'rotate(' + ($elm$core$String$fromInt(p.d * 90) + (' ' + ($elm$core$String$fromFloat(lxPx) + (' ' + ($elm$core$String$fromFloat(lyPx) + ')')))));
@@ -8512,15 +8523,15 @@ var $author$project$Main$drawTile = F6(
 					_List_Nil);
 			},
 			A2($author$project$Main$placedMarkerPaths, p, spec));
-		var cellPx = function (_v6) {
-			var lc = _v6.a;
-			var lr = _v6.b;
+		var cellPx = function (_v8) {
+			var lc = _v8.a;
+			var lr = _v8.b;
 			return _Utils_Tuple2((p.a + (lc * p.g)) * uf, (p.b + (lr * p.g)) * uf);
 		};
 		var cellRect = function (lc) {
-			var _v5 = cellPx(lc);
-			var px = _v5.a;
-			var py = _v5.b;
+			var _v7 = cellPx(lc);
+			var px = _v7.a;
+			var py = _v7.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_Utils_ap(
@@ -8540,9 +8551,9 @@ var $author$project$Main$drawTile = F6(
 				_List_Nil);
 		};
 		var clipRect = function (lc) {
-			var _v4 = cellPx(lc);
-			var px = _v4.a;
-			var py = _v4.b;
+			var _v6 = cellPx(lc);
+			var px = _v6.a;
+			var py = _v6.b;
 			return A2(
 				$elm$svg$Svg$rect,
 				_List_fromArray(
@@ -8571,6 +8582,71 @@ var $author$project$Main$drawTile = F6(
 						]),
 					A2($elm$core$List$map, clipRect, localCells))
 				]));
+		var contourList = function () {
+			if (onBoard && (u_ >= 8)) {
+				var edgeLine = F4(
+					function (x1, y1, x2, y2) {
+						return A2(
+							$elm$svg$Svg$line,
+							_List_fromArray(
+								[
+									$elm$svg$Svg$Attributes$x1(
+									$elm$core$String$fromFloat(x1)),
+									$elm$svg$Svg$Attributes$y1(
+									$elm$core$String$fromFloat(y1)),
+									$elm$svg$Svg$Attributes$x2(
+									$elm$core$String$fromFloat(x2)),
+									$elm$svg$Svg$Attributes$y2(
+									$elm$core$String$fromFloat(y2)),
+									$elm$svg$Svg$Attributes$stroke('#000000'),
+									$elm$svg$Svg$Attributes$strokeWidth('1'),
+									$elm$svg$Svg$Attributes$pointerEvents('none')
+								]),
+							_List_Nil);
+					});
+				return A2(
+					$elm$core$List$concatMap,
+					function (lc) {
+						var _v4 = cellPx(lc);
+						var px = _v4.a;
+						var py = _v4.b;
+						var px2 = px + cellSz;
+						var py2 = py + cellSz;
+						var _v5 = lc;
+						var lcC = _v5.a;
+						var lcR = _v5.b;
+						return A2(
+							$elm$core$List$filterMap,
+							$elm$core$Basics$identity,
+							_List_fromArray(
+								[
+									A2(
+									$elm$core$Set$member,
+									_Utils_Tuple2(lcC, lcR - 1),
+									localCellSet) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
+									A4(edgeLine, px, py, px2, py)),
+									A2(
+									$elm$core$Set$member,
+									_Utils_Tuple2(lcC, lcR + 1),
+									localCellSet) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
+									A4(edgeLine, px, py2, px2, py2)),
+									A2(
+									$elm$core$Set$member,
+									_Utils_Tuple2(lcC - 1, lcR),
+									localCellSet) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
+									A4(edgeLine, px, py, px, py2)),
+									A2(
+									$elm$core$Set$member,
+									_Utils_Tuple2(lcC + 1, lcR),
+									localCellSet) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
+									A4(edgeLine, px2, py, px2, py2))
+								]));
+					},
+					localCells);
+			} else {
+				return _List_Nil;
+			}
+		}();
 		var decorationList = A2(
 			$elm$core$List$map,
 			function (d) {
@@ -8690,16 +8766,13 @@ var $author$project$Main$drawTile = F6(
 						_Utils_ap(
 							decorationList,
 							_Utils_ap(
-								selection,
+								contourList,
 								_Utils_ap(
-									overlapHighlight,
-									_List_fromArray(
-										[letter]))))))));
-	});
-var $elm$core$Set$member = F2(
-	function (key, _v0) {
-		var dict = _v0;
-		return A2($elm$core$Dict$member, key, dict);
+									selection,
+									_Utils_ap(
+										overlapHighlight,
+										_List_fromArray(
+											[letter])))))))));
 	});
 var $author$project$Main$drawPlacedTileOnBoard = F2(
 	function (model, p) {
@@ -8722,11 +8795,6 @@ var $author$project$Main$drawPlacedTileOnBoard = F2(
 		}
 	});
 var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
-var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
-var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
-var $elm$svg$Svg$Attributes$x2 = _VirtualDom_attribute('x2');
-var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
-var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
 var $author$project$Main$gridLines = function (model) {
 	var u_ = model.f;
 	var minRow = $elm$core$Basics$floor(model.y) - 1;
