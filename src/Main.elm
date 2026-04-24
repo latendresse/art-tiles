@@ -2466,7 +2466,7 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
                 [ polyline
                     [ SA.points (pointsAttr path)
                     , SA.stroke "#fff200"
-                    , SA.strokeWidth (String.fromFloat (cellSz / 5))
+                    , SA.strokeWidth (String.fromFloat (cellSz / 6))
                     , SA.fill "none"
                     , SA.strokeLinejoin "miter"
                     , SA.strokeLinecap "butt"
@@ -2648,7 +2648,7 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ thinPathList ++ decorationList ++ contourList ++ selection ++ overlapHighlight ++ [ letter ]
+    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ decorationList ++ thinPathList ++ contourList ++ selection ++ overlapHighlight ++ [ letter ]
 
 
 

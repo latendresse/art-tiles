@@ -8562,7 +8562,7 @@ var $author$project$Main$drawTile = F6(
 							pointsAttr(path)),
 							$elm$svg$Svg$Attributes$stroke('#fff200'),
 							$elm$svg$Svg$Attributes$strokeWidth(
-							$elm$core$String$fromFloat(cellSz / 5)),
+							$elm$core$String$fromFloat(cellSz / 6)),
 							$elm$svg$Svg$Attributes$fill('none'),
 							$elm$svg$Svg$Attributes$strokeLinejoin('miter'),
 							$elm$svg$Svg$Attributes$strokeLinecap('butt'),
@@ -8813,9 +8813,9 @@ var $author$project$Main$drawTile = F6(
 					_Utils_ap(
 						markerList,
 						_Utils_ap(
-							thinPathList,
+							decorationList,
 							_Utils_ap(
-								decorationList,
+								thinPathList,
 								_Utils_ap(
 									contourList,
 									_Utils_ap(
