@@ -94,6 +94,10 @@ type alias TileSpec =
     -- in its decoration list (see Decoration.kind).
     , grid : List String
     , bandPath : List ( Float, Float )
+    , thinPath : List ( Float, Float )
+
+    -- thin (1/5 cell) yellow polyline that threads through the tile,
+    -- typically along cell centres. Empty = no thin line drawn.
     , letterPos : ( Float, Float )
     , markers : List Marker
     , decorations : List Decoration
@@ -116,6 +120,7 @@ tileA =
         , ".##....."
         ]
     , bandPath = [ ( 0, 4 ), ( 3, 4 ), ( 3, 8 ) ]
+    , thinPath = []
     , letterPos = ( 3, 4 )
     , markers =
         [ { col = 2, row = 0, dir = H }
@@ -151,6 +156,7 @@ tileR =
         , "...###.."
         ]
     , bandPath = [ ( 3, 0 ), ( 3, 4 ), ( 8, 4 ) ]
+    , thinPath = []
     , letterPos = ( 3, 4 )
     , markers =
         [ { col = 0, row = 4, dir = V }
@@ -182,6 +188,16 @@ tileT =
         , "..###."
         ]
     , bandPath = [ ( 2, 0 ), ( 2, 3 ), ( 0, 3 ) ]
+
+    -- Left middle of (row 5, col 2) -> middle of (5, 4) -> middle of
+    -- (0, 4) -> middle of (0, 5) -> bottom middle of (2, 5).
+    , thinPath =
+        [ ( 2, 5.5 )
+        , ( 4.5, 5.5 )
+        , ( 4.5, 0.5 )
+        , ( 5.5, 0.5 )
+        , ( 5.5, 3 )
+        ]
     , letterPos = ( 2, 3 )
     , markers =
         [ { col = 5, row = 2, dir = V }
@@ -301,6 +317,13 @@ rotatePoint k ( h, w ) ( x, y ) =
 placedBandPath : PlacedTile -> TileSpec -> List ( Float, Float )
 placedBandPath p spec =
     spec.bandPath
+        |> List.map (rotatePoint p.rotation (specDims spec))
+        |> List.map (\( x, y ) -> ( p.col + x * p.scale, p.row + y * p.scale ))
+
+
+placedThinPath : PlacedTile -> TileSpec -> List ( Float, Float )
+placedThinPath p spec =
+    spec.thinPath
         |> List.map (rotatePoint p.rotation (specDims spec))
         |> List.map (\( x, y ) -> ( p.col + x * p.scale, p.row + y * p.scale ))
 
@@ -2434,6 +2457,28 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
                             []
                     )
 
+        thinPathList =
+            let
+                path =
+                    placedThinPath p spec
+            in
+            if List.length path >= 2 then
+                [ polyline
+                    [ SA.points (pointsAttr path)
+                    , SA.stroke "#fff200"
+                    , SA.strokeWidth (String.fromFloat (cellSz / 5))
+                    , SA.fill "none"
+                    , SA.strokeLinejoin "miter"
+                    , SA.strokeLinecap "butt"
+                    , SA.clipPath ("url(#" ++ clipId ++ ")")
+                    , SA.pointerEvents "none"
+                    ]
+                    []
+                ]
+
+            else
+                []
+
         decorationList =
             spec.decorations
                 |> List.map
@@ -2603,7 +2648,7 @@ drawTile isOverlapping u_ onBoard isSelected p spec =
                 ]
                 [ Svg.text spec.name ]
     in
-    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ decorationList ++ contourList ++ selection ++ overlapHighlight ++ [ letter ]
+    clipDef :: List.map cellRect localCells ++ bandList ++ markerList ++ thinPathList ++ decorationList ++ contourList ++ selection ++ overlapHighlight ++ [ letter ]
 
 
 
